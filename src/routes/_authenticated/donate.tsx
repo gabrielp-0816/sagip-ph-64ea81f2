@@ -48,14 +48,17 @@ function DonatePage() {
 
   const { data: disasters } = useQuery({
     queryKey: ["donate-disasters"],
-    queryFn: async () =>
-      (
-        await supabase
-          .from("disasters")
-          .select("id,name,city,required_funding,raised_amount")
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-      ).data ?? [],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id ?? "";
+      const { data } = await supabase
+        .from("disasters")
+        .select("id,name,city,required_funding,raised_amount,created_by")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      // Hide campaigns the current user created — they can't donate to their own.
+      return (data ?? []).filter((d: any) => d.created_by !== uid);
+    },
   });
 
   const { data: profile } = useQuery({
@@ -78,6 +81,14 @@ function DonatePage() {
     if (!profile) { toast.error("Profile not loaded"); return; }
     setSubmitting(true);
     const { data: auth } = await supabase.auth.getUser();
+    if (vals.disaster_id) {
+      const { data: d } = await supabase.from("disasters").select("created_by").eq("id", vals.disaster_id).maybeSingle();
+      if (d?.created_by === auth.user?.id) {
+        setSubmitting(false);
+        toast.error("You can't donate to a disaster campaign you created.");
+        return;
+      }
+    }
     const donorName = vals.is_anonymous ? "Anonymous donor" : `${profile.first_name} ${profile.last_name}`;
     const { error } = await supabase.from("donations").insert({
       donor_id: auth.user?.id,

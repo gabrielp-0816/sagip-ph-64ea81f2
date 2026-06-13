@@ -14,13 +14,18 @@ export const Route = createFileRoute("/_authenticated/requests")({
 function RequestsPage() {
   const { data: requests, isLoading } = useQuery({
     queryKey: ["my-requests"],
-    queryFn: async () =>
-      (
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return [];
+      return (
         await supabase
           .from("fund_requests")
           .select("id,disaster_description,status,requested_amount,estimated_damage_cost,affected_individuals,city,barangay,reviewer_notes,created_at,disasters(name),disaster_categories(name)")
+          .eq("requester_id", uid)
           .order("created_at", { ascending: false })
-      ).data ?? [],
+      ).data ?? [];
+    },
   });
 
   return (
