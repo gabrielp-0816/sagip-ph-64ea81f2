@@ -1,0 +1,161 @@
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { SagipLogo } from "./Logo";
+import { Button } from "@/components/ui/button";
+import {
+  LayoutDashboard,
+  Siren,
+  Wallet,
+  ClipboardCheck,
+  HandHeart,
+  Users,
+  ScrollText,
+  LogOut,
+  Menu,
+  Bell,
+  ArrowLeft,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+const nav = [
+  { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  { to: "/admin/disasters", label: "Disasters", icon: Siren },
+  { to: "/admin/allocations", label: "Fund allocations", icon: Wallet },
+  { to: "/admin/requests", label: "Assistance requests", icon: ClipboardCheck },
+  { to: "/admin/donations", label: "Donations", icon: HandHeart },
+  { to: "/admin/users", label: "Users & roles", icon: Users },
+  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+] as const;
+
+export function AdminShell({ children, title, subtitle, actions }: { children: ReactNode; title: string; subtitle?: string; actions?: ReactNode }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [open, setOpen] = useState(false);
+
+  const meta = useQuery({
+    queryKey: ["admin-shell-meta"],
+    queryFn: async () => {
+      const [profile, pending] = await Promise.all([
+        supabase.from("profiles").select("first_name,last_name").maybeSingle(),
+        supabase.from("fund_requests").select("id", { count: "exact", head: true }).in("status", ["pending", "under_review"]),
+      ]);
+      return { profile: profile.data, pending: pending.count ?? 0 };
+    },
+  });
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-shell")
+      .on("postgres_changes", { event: "*", schema: "public", table: "fund_requests" }, () =>
+        queryClient.invalidateQueries({ queryKey: ["admin-shell-meta"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [queryClient]);
+
+  const onSignOut = async () => {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    toast.success("Signed out");
+    navigate({ to: "/auth", replace: true });
+  };
+
+  const name = meta.data?.profile ? `${meta.data.profile.first_name} ${meta.data.profile.last_name}` : "Administrator";
+
+  return (
+    <div className="min-h-screen bg-ink text-paper">
+      <div className="h-1 bg-gradient-to-r from-gold via-relief to-primary" />
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-ink/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3 lg:px-6">
+          <div className="flex items-center gap-3">
+            <button className="rounded-md p-2 hover:bg-white/10 lg:hidden" onClick={() => setOpen(!open)} aria-label="Toggle navigation">
+              <Menu className="h-5 w-5" />
+            </button>
+            <Link to="/admin" className="flex items-center gap-3">
+              <SagipLogo variant="light" />
+              <span className="hidden rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold sm:inline">Admin Console</span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" asChild className="text-paper/80 hover:bg-white/10 hover:text-paper">
+              <Link to="/dashboard"><ArrowLeft className="h-4 w-4" /> Citizen view</Link>
+            </Button>
+            <Button variant="ghost" size="icon" asChild className="text-paper/80 hover:bg-white/10 hover:text-paper" aria-label="Notifications">
+              <Link to="/notifications"><Bell className="h-4 w-4" /></Link>
+            </Button>
+            <span className="hidden text-sm font-medium text-paper/90 sm:inline">{name}</span>
+            <Button variant="outline" size="sm" onClick={onSignOut} className="border-white/20 bg-transparent text-paper hover:bg-white/10">
+              <LogOut className="h-4 w-4" /> Sign out
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto flex max-w-[1500px] gap-6 px-4 py-6 lg:px-6">
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 bg-ink p-4 transition-transform lg:static lg:translate-x-0 lg:bg-transparent lg:p-0",
+            open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          )}
+        >
+          <nav className="space-y-0.5">
+            {nav.map((n) => {
+              const Icon = n.icon;
+              const active = n.exact ? pathname === n.to : pathname === n.to || pathname.startsWith(n.to + "/");
+              return (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    active ? "bg-gold/15 text-gold" : "text-paper/70 hover:bg-white/5 hover:text-paper",
+                  )}
+                >
+                  <Icon className="h-4 w-4" /> {n.label}
+                  {n.to === "/admin/requests" && !!meta.data?.pending && (
+                    <span className="ml-auto rounded-full bg-warning px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">{meta.data.pending}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mt-8 rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-paper/70">
+            <p className="font-display text-sm font-semibold text-paper">Operational note</p>
+            <p className="mt-1">All admin actions are recorded in the audit log. Use the highest scrutiny when releasing funds.</p>
+          </div>
+        </aside>
+        {open && <button aria-label="Close menu" onClick={() => setOpen(false)} className="fixed inset-0 z-30 bg-black/60 lg:hidden" />}
+
+        <main className="min-w-0 flex-1 rounded-xl bg-paper p-5 text-foreground shadow-2xl sm:p-7">
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-5">
+            <div>
+              <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+              {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+            </div>
+            {actions}
+          </div>
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export async function logAudit(action: string, entityType?: string, entityId?: string, metadata?: Record<string, unknown>) {
+  const { data: u } = await supabase.auth.getUser();
+  await supabase.from("audit_logs").insert({
+    actor_id: u.user?.id ?? null,
+    action,
+    entity_type: entityType ?? null,
+    entity_id: entityId ?? null,
+    metadata: metadata ?? null,
+  });
+}
