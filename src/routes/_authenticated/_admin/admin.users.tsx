@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShieldCheck, ShieldOff, Search, UserCog } from "lucide-react";
+import { ShieldCheck, ShieldOff, Search, UserCog, KeyRound, Copy, Check } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { generateAdminInviteCode, listAdminInviteCodes } from "@/lib/auth/admin.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 const ROLES = ["admin", "official", "ngo", "citizen"] as const;
 
@@ -96,6 +98,42 @@ function Users() {
     qc.invalidateQueries({ queryKey: ["admin-roles"] });
   };
 
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showCodes, setShowCodes] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [note, setNote] = useState("");
+
+  const listCodes = useServerFn(listAdminInviteCodes);
+  const genCode = useServerFn(generateAdminInviteCode);
+
+  const codes = useQuery({
+    queryKey: ["admin-invite-codes"],
+    queryFn: async () => listCodes(),
+    enabled: showCodes,
+  });
+
+  const onGenerate = async () => {
+    setGenerating(true);
+    try {
+      const res = await genCode({ data: { note: note || undefined } });
+      toast.success("Invite code generated");
+      setNote("");
+      qc.invalidateQueries({ queryKey: ["admin-invite-codes"] });
+      await logAudit("admin.invite_code_created", "admin_invite_codes", res.id, { code: res.code });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to generate code");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast.success("Copied to clipboard");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
     <AdminShell title="Users & roles" subtitle="Verify citizens, assign roles, and manage account access.">
       <div className="mb-4 max-w-sm">
@@ -155,6 +193,69 @@ function Users() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-10 rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="rounded-lg bg-primary/10 p-2 text-primary"><KeyRound className="h-4 w-4" /></span>
+            <div>
+              <h2 className="font-display text-lg font-semibold">Administrator invite codes</h2>
+              <p className="text-xs text-muted-foreground">Generate single-use codes for new admin registrations. All code usage is logged.</p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowCodes((s) => !s)}>{showCodes ? "Hide codes" : "Show codes"}</Button>
+        </div>
+
+        {showCodes && (
+          <div className="mt-5 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1">
+                <Label className="text-xs">Optional note (e.g., who this is for)</Label>
+                <Input className="mt-1" placeholder="e.g., For new DRRM coordinator" value={note} onChange={(e) => setNote(e.target.value)} />
+              </div>
+              <Button onClick={onGenerate} disabled={generating} className="shrink-0">
+                {generating ? "Generating..." : "Generate new code"}
+              </Button>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2">Code</th>
+                    <th className="px-3 py-2">Note</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Created</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {codes.data?.length === 0 && (
+                    <tr><td colSpan={5} className="p-6 text-center text-xs text-muted-foreground">No invite codes yet.</td></tr>
+                  )}
+                  {codes.data?.map((c: any) => (
+                    <tr key={c.id} className="hover:bg-secondary/30">
+                      <td className="px-3 py-2 font-mono text-xs font-medium">{c.code}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{c.note || "—"}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {c.used_at ? <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive">Used</span> : c.expires_at && new Date(c.expires_at) < new Date() ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning-foreground">Expired</span> : <span className="rounded-full bg-relief/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-relief">Active</span>}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(c.created_at)}</td>
+                      <td className="px-3 py-2">
+                        {!c.used_at && (
+                          <Button variant="ghost" size="sm" onClick={() => copyToClipboard(c.code, c.id)}>
+                            {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-relief" /> : <Copy className="h-3.5 w-3.5" />}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
