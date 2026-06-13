@@ -15,7 +15,6 @@ import {
   LogOut,
   Menu,
   Bell,
-  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
