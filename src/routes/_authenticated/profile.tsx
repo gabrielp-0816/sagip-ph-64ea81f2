@@ -58,10 +58,10 @@ function ProfilePage() {
         first_name: profile.first_name,
         middle_name: profile.middle_name ?? "",
         last_name: profile.last_name,
-        mobile_number: profile.mobile_number,
-        residential_address: profile.residential_address,
-        city: profile.city,
-        province: profile.province,
+        mobile_number: profile.mobile_number ?? "",
+        residential_address: profile.residential_address ?? "",
+        city: profile.city ?? "",
+        province: profile.province ?? "",
       });
     }
   }, [profile, reset]);
@@ -127,12 +127,12 @@ function ProfilePage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Date of birth</Label>
-                <Input value={profile.birth_date} readOnly className="mt-1.5 bg-muted/40" />
+                <Input value={profile.birth_date ?? ""} readOnly className="mt-1.5 bg-muted/40" />
                 <p className="mt-1 text-xs text-muted-foreground">Contact DRRM Office to correct.</p>
               </div>
               <div>
                 <Label>Gender</Label>
-                <Input value={profile.gender} readOnly className="mt-1.5 bg-muted/40 capitalize" />
+                <Input value={profile.gender ?? ""} readOnly className="mt-1.5 bg-muted/40 capitalize" />
               </div>
             </div>
           </section>
@@ -182,7 +182,7 @@ function ProfilePage() {
                 : "Your uploaded ID is being reviewed. Verification typically completes within 1 business day."}
             </p>
             <div className="mt-3 text-xs text-muted-foreground">
-              <p><span className="font-semibold text-ink">ID on file:</span> {profile.id_type.toUpperCase()} · {maskId(profile.id_number)}</p>
+              <p><span className="font-semibold text-ink">ID on file:</span> {profile.id_type ? `${profile.id_type.toUpperCase()} · ${maskId(profile.id_number ?? "")}` : "Not provided"}</p>
             </div>
           </div>
 
