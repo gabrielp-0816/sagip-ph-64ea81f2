@@ -98,12 +98,9 @@ function Dashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="relief" size="sm" asChild>
+                <div className="flex">
+                  <Button variant="relief" size="sm" asChild className="w-full">
                     <Link to="/donate" search={{ disaster: d.id } as any}><HandHeart className="h-4 w-4" /> Donate</Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/request" search={{ disaster: d.id } as any}><FileText className="h-4 w-4" /> Request aid</Link>
                   </Button>
                 </div>
               </li>
