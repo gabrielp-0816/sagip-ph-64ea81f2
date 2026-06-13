@@ -7,7 +7,7 @@ import { formatPHP, timeAgo } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Activity, HandHeart, Wallet, AlertTriangle, ArrowRight, Users, Siren } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/_admin/admin")({
+export const Route = createFileRoute("/_authenticated/_admin/admin/")({
   head: () => ({ meta: [{ title: "Admin overview — SAGIP" }] }),
   component: AdminOverview,
 });

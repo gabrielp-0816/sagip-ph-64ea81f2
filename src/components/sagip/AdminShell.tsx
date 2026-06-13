@@ -15,7 +15,6 @@ import {
   LogOut,
   Menu,
   Bell,
-  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -85,10 +84,8 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild className="text-paper/80 hover:bg-white/10 hover:text-paper">
-              <Link to="/dashboard"><ArrowLeft className="h-4 w-4" /> Citizen view</Link>
-            </Button>
             <Button variant="ghost" size="icon" asChild className="text-paper/80 hover:bg-white/10 hover:text-paper" aria-label="Notifications">
+
               <Link to="/notifications"><Bell className="h-4 w-4" /></Link>
             </Button>
             <span className="hidden text-sm font-medium text-paper/90 sm:inline">{name}</span>
