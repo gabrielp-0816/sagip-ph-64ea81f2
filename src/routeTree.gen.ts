@@ -26,6 +26,14 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedDonateRouteImport } from './routes/_authenticated/donate'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
+import { Route as AuthenticatedAdminAdminRouteImport } from './routes/_authenticated/_admin/admin'
+import { Route as AuthenticatedAdminAdminUsersRouteImport } from './routes/_authenticated/_admin/admin.users'
+import { Route as AuthenticatedAdminAdminRequestsRouteImport } from './routes/_authenticated/_admin/admin.requests'
+import { Route as AuthenticatedAdminAdminDonationsRouteImport } from './routes/_authenticated/_admin/admin.donations'
+import { Route as AuthenticatedAdminAdminDisastersRouteImport } from './routes/_authenticated/_admin/admin.disasters'
+import { Route as AuthenticatedAdminAdminAuditRouteImport } from './routes/_authenticated/_admin/admin.audit'
+import { Route as AuthenticatedAdminAdminAllocationsRouteImport } from './routes/_authenticated/_admin/admin.allocations'
 
 const TransparencyRoute = TransparencyRouteImport.update({
   id: '/transparency',
@@ -112,6 +120,51 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/_admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminAdminRoute = AuthenticatedAdminAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminAdminUsersRoute =
+  AuthenticatedAdminAdminUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => AuthenticatedAdminAdminRoute,
+  } as any)
+const AuthenticatedAdminAdminRequestsRoute =
+  AuthenticatedAdminAdminRequestsRouteImport.update({
+    id: '/requests',
+    path: '/requests',
+    getParentRoute: () => AuthenticatedAdminAdminRoute,
+  } as any)
+const AuthenticatedAdminAdminDonationsRoute =
+  AuthenticatedAdminAdminDonationsRouteImport.update({
+    id: '/donations',
+    path: '/donations',
+    getParentRoute: () => AuthenticatedAdminAdminRoute,
+  } as any)
+const AuthenticatedAdminAdminDisastersRoute =
+  AuthenticatedAdminAdminDisastersRouteImport.update({
+    id: '/disasters',
+    path: '/disasters',
+    getParentRoute: () => AuthenticatedAdminAdminRoute,
+  } as any)
+const AuthenticatedAdminAdminAuditRoute =
+  AuthenticatedAdminAdminAuditRouteImport.update({
+    id: '/audit',
+    path: '/audit',
+    getParentRoute: () => AuthenticatedAdminAdminRoute,
+  } as any)
+const AuthenticatedAdminAdminAllocationsRoute =
+  AuthenticatedAdminAdminAllocationsRouteImport.update({
+    id: '/allocations',
+    path: '/allocations',
+    getParentRoute: () => AuthenticatedAdminAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -130,6 +183,13 @@ export interface FileRoutesByFullPath {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/': typeof AuthIndexRoute
+  '/admin': typeof AuthenticatedAdminAdminRouteWithChildren
+  '/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
+  '/admin/audit': typeof AuthenticatedAdminAdminAuditRoute
+  '/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
+  '/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
+  '/admin/requests': typeof AuthenticatedAdminAdminRequestsRoute
+  '/admin/users': typeof AuthenticatedAdminAdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -147,6 +207,13 @@ export interface FileRoutesByTo {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth': typeof AuthIndexRoute
+  '/admin': typeof AuthenticatedAdminAdminRouteWithChildren
+  '/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
+  '/admin/audit': typeof AuthenticatedAdminAdminAuditRoute
+  '/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
+  '/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
+  '/admin/requests': typeof AuthenticatedAdminAdminRequestsRoute
+  '/admin/users': typeof AuthenticatedAdminAdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -158,6 +225,7 @@ export interface FileRoutesById {
   '/disasters': typeof DisastersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/transparency': typeof TransparencyRoute
+  '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/donate': typeof AuthenticatedDonateRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
@@ -167,6 +235,13 @@ export interface FileRoutesById {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
   '/auth/': typeof AuthIndexRoute
+  '/_authenticated/_admin/admin': typeof AuthenticatedAdminAdminRouteWithChildren
+  '/_authenticated/_admin/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
+  '/_authenticated/_admin/admin/audit': typeof AuthenticatedAdminAdminAuditRoute
+  '/_authenticated/_admin/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
+  '/_authenticated/_admin/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
+  '/_authenticated/_admin/admin/requests': typeof AuthenticatedAdminAdminRequestsRoute
+  '/_authenticated/_admin/admin/users': typeof AuthenticatedAdminAdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -187,6 +262,13 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/signup'
     | '/auth/'
+    | '/admin'
+    | '/admin/allocations'
+    | '/admin/audit'
+    | '/admin/disasters'
+    | '/admin/donations'
+    | '/admin/requests'
+    | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -204,6 +286,13 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/signup'
     | '/auth'
+    | '/admin'
+    | '/admin/allocations'
+    | '/admin/audit'
+    | '/admin/disasters'
+    | '/admin/donations'
+    | '/admin/requests'
+    | '/admin/users'
   id:
     | '__root__'
     | '/'
@@ -214,6 +303,7 @@ export interface FileRouteTypes {
     | '/disasters'
     | '/reset-password'
     | '/transparency'
+    | '/_authenticated/_admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/donate'
     | '/_authenticated/notifications'
@@ -223,6 +313,13 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/signup'
     | '/auth/'
+    | '/_authenticated/_admin/admin'
+    | '/_authenticated/_admin/admin/allocations'
+    | '/_authenticated/_admin/admin/audit'
+    | '/_authenticated/_admin/admin/disasters'
+    | '/_authenticated/_admin/admin/donations'
+    | '/_authenticated/_admin/admin/requests'
+    | '/_authenticated/_admin/admin/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -357,10 +454,108 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/_admin': {
+      id: '/_authenticated/_admin'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_admin/admin': {
+      id: '/_authenticated/_admin/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminAdminRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/_admin/admin/users': {
+      id: '/_authenticated/_admin/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminAdminRoute
+    }
+    '/_authenticated/_admin/admin/requests': {
+      id: '/_authenticated/_admin/admin/requests'
+      path: '/requests'
+      fullPath: '/admin/requests'
+      preLoaderRoute: typeof AuthenticatedAdminAdminRequestsRouteImport
+      parentRoute: typeof AuthenticatedAdminAdminRoute
+    }
+    '/_authenticated/_admin/admin/donations': {
+      id: '/_authenticated/_admin/admin/donations'
+      path: '/donations'
+      fullPath: '/admin/donations'
+      preLoaderRoute: typeof AuthenticatedAdminAdminDonationsRouteImport
+      parentRoute: typeof AuthenticatedAdminAdminRoute
+    }
+    '/_authenticated/_admin/admin/disasters': {
+      id: '/_authenticated/_admin/admin/disasters'
+      path: '/disasters'
+      fullPath: '/admin/disasters'
+      preLoaderRoute: typeof AuthenticatedAdminAdminDisastersRouteImport
+      parentRoute: typeof AuthenticatedAdminAdminRoute
+    }
+    '/_authenticated/_admin/admin/audit': {
+      id: '/_authenticated/_admin/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedAdminAdminRoute
+    }
+    '/_authenticated/_admin/admin/allocations': {
+      id: '/_authenticated/_admin/admin/allocations'
+      path: '/allocations'
+      fullPath: '/admin/allocations'
+      preLoaderRoute: typeof AuthenticatedAdminAdminAllocationsRouteImport
+      parentRoute: typeof AuthenticatedAdminAdminRoute
+    }
   }
 }
 
+interface AuthenticatedAdminAdminRouteChildren {
+  AuthenticatedAdminAdminAllocationsRoute: typeof AuthenticatedAdminAdminAllocationsRoute
+  AuthenticatedAdminAdminAuditRoute: typeof AuthenticatedAdminAdminAuditRoute
+  AuthenticatedAdminAdminDisastersRoute: typeof AuthenticatedAdminAdminDisastersRoute
+  AuthenticatedAdminAdminDonationsRoute: typeof AuthenticatedAdminAdminDonationsRoute
+  AuthenticatedAdminAdminRequestsRoute: typeof AuthenticatedAdminAdminRequestsRoute
+  AuthenticatedAdminAdminUsersRoute: typeof AuthenticatedAdminAdminUsersRoute
+}
+
+const AuthenticatedAdminAdminRouteChildren: AuthenticatedAdminAdminRouteChildren =
+  {
+    AuthenticatedAdminAdminAllocationsRoute:
+      AuthenticatedAdminAdminAllocationsRoute,
+    AuthenticatedAdminAdminAuditRoute: AuthenticatedAdminAdminAuditRoute,
+    AuthenticatedAdminAdminDisastersRoute:
+      AuthenticatedAdminAdminDisastersRoute,
+    AuthenticatedAdminAdminDonationsRoute:
+      AuthenticatedAdminAdminDonationsRoute,
+    AuthenticatedAdminAdminRequestsRoute: AuthenticatedAdminAdminRequestsRoute,
+    AuthenticatedAdminAdminUsersRoute: AuthenticatedAdminAdminUsersRoute,
+  }
+
+const AuthenticatedAdminAdminRouteWithChildren =
+  AuthenticatedAdminAdminRoute._addFileChildren(
+    AuthenticatedAdminAdminRouteChildren,
+  )
+
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminAdminRoute: typeof AuthenticatedAdminAdminRouteWithChildren
+}
+
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminAdminRoute: AuthenticatedAdminAdminRouteWithChildren,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDonateRoute: typeof AuthenticatedDonateRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
@@ -370,6 +565,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDonateRoute: AuthenticatedDonateRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
