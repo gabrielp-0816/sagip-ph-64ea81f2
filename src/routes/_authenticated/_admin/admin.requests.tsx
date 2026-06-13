@@ -31,11 +31,18 @@ function ManageRequests() {
   const list = useQuery({
     queryKey: ["admin-requests", filter],
     queryFn: async () => {
-      let q = supabase.from("fund_requests").select("*,profiles!fund_requests_requester_id_fkey(first_name,last_name,mobile_number,email),disasters(name),disaster_categories(name)").order("created_at", { ascending: false });
+      let q = supabase.from("fund_requests").select("*,disasters(name),disaster_categories(name)").order("created_at", { ascending: false });
       if (filter !== "all") q = q.eq("status", filter);
       const { data, error } = await q;
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      const ids = Array.from(new Set(rows.map((r: any) => r.requester_id).filter(Boolean)));
+      let profilesById: Record<string, any> = {};
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,first_name,last_name,mobile_number,email").in("id", ids);
+        profilesById = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
+      }
+      return rows.map((r: any) => ({ ...r, profiles: profilesById[r.requester_id] ?? null }));
     },
   });
 
