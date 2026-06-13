@@ -15,11 +15,32 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
   const queryClient = useQueryClient();
 
-  const summary = useQuery({
-    queryKey: ["dashboard-summary"],
+  const { data: user } = useQuery({
+    queryKey: ["auth-user"],
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth.user?.id ?? "";
+      const { data } = await supabase.auth.getUser();
+      return data.user;
+    },
+    staleTime: Infinity,
+  });
+
+  const uid = user?.id ?? "";
+
+  const summary = useQuery({
+    queryKey: ["dashboard-summary", uid],
+    queryFn: async () => {
+      if (!uid) {
+        return {
+          totalDonations: 0,
+          availableFunds: 0,
+          fundsReleased: 0,
+          fundsPending: 0,
+          disasters: [],
+          myDonations: [],
+          myRequests: [],
+          uid: "",
+        };
+      }
       const [donations, requests, allocations, disasters, myDonations, myRequests] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_requests").select("id,status"),
@@ -31,7 +52,7 @@ function Dashboard() {
           .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("donations").select("id,amount,created_at,disasters(name)").eq("donor_id", uid).order("created_at", { ascending: false }).limit(5),
-        supabase.from("fund_requests").select("id,disaster_description,status,requested_amount,created_at").eq("requester_id", uid).order("created_at", { ascending: false }).limit(5),
+        supabase.from("fund_requests").select("id,requester_id,disaster_description,status,requested_amount,created_at").eq("requester_id", uid).order("created_at", { ascending: false }).limit(5),
       ]);
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocations.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
@@ -46,10 +67,11 @@ function Dashboard() {
         fundsPending: pending,
         disasters: visibleDisasters,
         myDonations: myDonations.data ?? [],
-        myRequests: myRequests.data ?? [],
+        myRequests: (myRequests.data ?? []).filter((r: any) => r.requester_id === uid),
         uid,
       };
     },
+    enabled: !!uid,
   });
 
   useEffect(() => {
