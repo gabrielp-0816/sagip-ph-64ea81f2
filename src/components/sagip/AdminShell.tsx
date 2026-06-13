@@ -20,7 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const nav = [
+type NavItem = { to: string; label: string; icon: any; exact?: boolean };
+const nav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/admin/disasters", label: "Disasters", icon: Siren },
   { to: "/admin/allocations", label: "Fund allocations", icon: Wallet },
@@ -28,7 +29,7 @@ const nav = [
   { to: "/admin/donations", label: "Donations", icon: HandHeart },
   { to: "/admin/users", label: "Users & roles", icon: Users },
   { to: "/admin/audit", label: "Audit log", icon: ScrollText },
-] as const;
+];
 
 export function AdminShell({ children, title, subtitle, actions }: { children: ReactNode; title: string; subtitle?: string; actions?: ReactNode }) {
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
               return (
                 <Link
                   key={n.to}
-                  to={n.to}
+                  to={n.to as any}
                   onClick={() => setOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
@@ -156,6 +157,6 @@ export async function logAudit(action: string, entityType?: string, entityId?: s
     action,
     entity_type: entityType ?? null,
     entity_id: entityId ?? null,
-    metadata: metadata ?? null,
+    metadata: (metadata ?? null) as any,
   });
 }

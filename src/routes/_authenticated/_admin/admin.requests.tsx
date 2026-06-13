@@ -50,7 +50,7 @@ function ManageRequests() {
 
   const setStatus = async (r: any, status: string, notes?: string) => {
     const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("fund_requests").update({ status, reviewer_notes: notes ?? r.reviewer_notes, reviewed_by: u.user?.id ?? null, reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    const { error } = await supabase.from("fund_requests").update({ status: status as any, reviewer_notes: notes ?? r.reviewer_notes, reviewed_by: u.user?.id ?? null, reviewed_at: new Date().toISOString() }).eq("id", r.id);
     if (error) return toast.error(error.message);
     await logAudit(`request.${status}`, "fund_requests", r.id, { notes });
     await notify(r.requester_id, `Your aid request has been ${status.replace("_", " ")}`, notes || `Request: ${r.disaster_description.slice(0, 80)}`, status === "rejected" ? "high" : "normal");
