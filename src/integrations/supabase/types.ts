@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          note: string | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          note?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -405,68 +438,68 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          birth_date: string
-          city: string
+          birth_date: string | null
+          city: string | null
           created_at: string
           email: string
           first_name: string
-          gender: Database["public"]["Enums"]["gender_type"]
+          gender: Database["public"]["Enums"]["gender_type"] | null
           id: string
           id_document_path: string
-          id_number: string
-          id_type: Database["public"]["Enums"]["id_type"]
+          id_number: string | null
+          id_type: Database["public"]["Enums"]["id_type"] | null
           is_suspended: boolean
           is_verified: boolean
           last_name: string
           middle_name: string | null
-          mobile_number: string
+          mobile_number: string | null
           must_change_password: boolean
-          province: string
-          residential_address: string
+          province: string | null
+          residential_address: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
-          birth_date: string
-          city: string
+          birth_date?: string | null
+          city?: string | null
           created_at?: string
           email: string
           first_name: string
-          gender: Database["public"]["Enums"]["gender_type"]
+          gender?: Database["public"]["Enums"]["gender_type"] | null
           id: string
           id_document_path: string
-          id_number: string
-          id_type: Database["public"]["Enums"]["id_type"]
+          id_number?: string | null
+          id_type?: Database["public"]["Enums"]["id_type"] | null
           is_suspended?: boolean
           is_verified?: boolean
           last_name: string
           middle_name?: string | null
-          mobile_number: string
+          mobile_number?: string | null
           must_change_password?: boolean
-          province: string
-          residential_address: string
+          province?: string | null
+          residential_address?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
-          birth_date?: string
-          city?: string
+          birth_date?: string | null
+          city?: string | null
           created_at?: string
           email?: string
           first_name?: string
-          gender?: Database["public"]["Enums"]["gender_type"]
+          gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
           id_document_path?: string
-          id_number?: string
-          id_type?: Database["public"]["Enums"]["id_type"]
+          id_number?: string | null
+          id_type?: Database["public"]["Enums"]["id_type"] | null
           is_suspended?: boolean
           is_verified?: boolean
           last_name?: string
           middle_name?: string | null
-          mobile_number?: string
+          mobile_number?: string | null
           must_change_password?: boolean
-          province?: string
-          residential_address?: string
+          province?: string | null
+          residential_address?: string | null
           updated_at?: string
         }
         Relationships: []

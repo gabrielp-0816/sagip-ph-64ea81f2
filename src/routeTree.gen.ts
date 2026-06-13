@@ -14,12 +14,15 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as DisastersRouteImport } from './routes/disasters'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AdminAuthRouteImport } from './routes/admin-auth'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
+import { Route as AdminAuthIndexRouteImport } from './routes/admin-auth.index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
+import { Route as AdminAuthSignupRouteImport } from './routes/admin-auth.signup'
 import { Route as AuthenticatedRequestsRouteImport } from './routes/_authenticated/requests'
 import { Route as AuthenticatedRequestRouteImport } from './routes/_authenticated/request'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -60,6 +63,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAuthRoute = AdminAuthRouteImport.update({
+  id: '/admin-auth',
+  path: '/admin-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -79,6 +87,11 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthRoute,
 } as any)
+const AdminAuthIndexRoute = AdminAuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminAuthRoute,
+} as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -88,6 +101,11 @@ const AuthForgotRoute = AuthForgotRouteImport.update({
   id: '/forgot',
   path: '/forgot',
   getParentRoute: () => AuthRoute,
+} as any)
+const AdminAuthSignupRoute = AdminAuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AdminAuthRoute,
 } as any)
 const AuthenticatedRequestsRoute = AuthenticatedRequestsRouteImport.update({
   id: '/requests',
@@ -169,6 +187,7 @@ const AuthenticatedAdminAdminAllocationsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin-auth': typeof AdminAuthRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/contact': typeof ContactRoute
   '/disasters': typeof DisastersRoute
@@ -180,8 +199,10 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/request': typeof AuthenticatedRequestRoute
   '/requests': typeof AuthenticatedRequestsRoute
+  '/admin-auth/signup': typeof AdminAuthSignupRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/admin-auth/': typeof AdminAuthIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/admin': typeof AuthenticatedAdminAdminRouteWithChildren
   '/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
@@ -204,8 +225,10 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/request': typeof AuthenticatedRequestRoute
   '/requests': typeof AuthenticatedRequestsRoute
+  '/admin-auth/signup': typeof AdminAuthSignupRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/admin-auth': typeof AdminAuthIndexRoute
   '/auth': typeof AuthIndexRoute
   '/admin': typeof AuthenticatedAdminAdminRouteWithChildren
   '/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
@@ -220,6 +243,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/about': typeof AboutRoute
+  '/admin-auth': typeof AdminAuthRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
   '/contact': typeof ContactRoute
   '/disasters': typeof DisastersRoute
@@ -232,8 +256,10 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/request': typeof AuthenticatedRequestRoute
   '/_authenticated/requests': typeof AuthenticatedRequestsRoute
+  '/admin-auth/signup': typeof AdminAuthSignupRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/admin-auth/': typeof AdminAuthIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/_authenticated/_admin/admin': typeof AuthenticatedAdminAdminRouteWithChildren
   '/_authenticated/_admin/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
@@ -248,6 +274,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/admin-auth'
     | '/auth'
     | '/contact'
     | '/disasters'
@@ -259,8 +286,10 @@ export interface FileRouteTypes {
     | '/profile'
     | '/request'
     | '/requests'
+    | '/admin-auth/signup'
     | '/auth/forgot'
     | '/auth/signup'
+    | '/admin-auth/'
     | '/auth/'
     | '/admin'
     | '/admin/allocations'
@@ -283,8 +312,10 @@ export interface FileRouteTypes {
     | '/profile'
     | '/request'
     | '/requests'
+    | '/admin-auth/signup'
     | '/auth/forgot'
     | '/auth/signup'
+    | '/admin-auth'
     | '/auth'
     | '/admin'
     | '/admin/allocations'
@@ -298,6 +329,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/about'
+    | '/admin-auth'
     | '/auth'
     | '/contact'
     | '/disasters'
@@ -310,8 +342,10 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/request'
     | '/_authenticated/requests'
+    | '/admin-auth/signup'
     | '/auth/forgot'
     | '/auth/signup'
+    | '/admin-auth/'
     | '/auth/'
     | '/_authenticated/_admin/admin'
     | '/_authenticated/_admin/admin/allocations'
@@ -326,6 +360,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
+  AdminAuthRoute: typeof AdminAuthRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   ContactRoute: typeof ContactRoute
   DisastersRoute: typeof DisastersRoute
@@ -370,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-auth': {
+      id: '/admin-auth'
+      path: '/admin-auth'
+      fullPath: '/admin-auth'
+      preLoaderRoute: typeof AdminAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -398,6 +440,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/admin-auth/': {
+      id: '/admin-auth/'
+      path: '/'
+      fullPath: '/admin-auth/'
+      preLoaderRoute: typeof AdminAuthIndexRouteImport
+      parentRoute: typeof AdminAuthRoute
+    }
     '/auth/signup': {
       id: '/auth/signup'
       path: '/signup'
@@ -411,6 +460,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/forgot'
       preLoaderRoute: typeof AuthForgotRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/admin-auth/signup': {
+      id: '/admin-auth/signup'
+      path: '/signup'
+      fullPath: '/admin-auth/signup'
+      preLoaderRoute: typeof AdminAuthSignupRouteImport
+      parentRoute: typeof AdminAuthRoute
     }
     '/_authenticated/requests': {
       id: '/_authenticated/requests'
@@ -577,6 +633,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AdminAuthRouteChildren {
+  AdminAuthSignupRoute: typeof AdminAuthSignupRoute
+  AdminAuthIndexRoute: typeof AdminAuthIndexRoute
+}
+
+const AdminAuthRouteChildren: AdminAuthRouteChildren = {
+  AdminAuthSignupRoute: AdminAuthSignupRoute,
+  AdminAuthIndexRoute: AdminAuthIndexRoute,
+}
+
+const AdminAuthRouteWithChildren = AdminAuthRoute._addFileChildren(
+  AdminAuthRouteChildren,
+)
+
 interface AuthRouteChildren {
   AuthForgotRoute: typeof AuthForgotRoute
   AuthSignupRoute: typeof AuthSignupRoute
@@ -595,6 +665,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
+  AdminAuthRoute: AdminAuthRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ContactRoute: ContactRoute,
   DisastersRoute: DisastersRoute,
