@@ -112,3 +112,67 @@ export const signUpAdmin = createServerFn({ method: "POST" })
 
     return { ok: true, userId };
   });
+
+function makeCode(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let s = "SAGIP-ADMIN-";
+  for (let i = 0; i < 12; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+export const generateAdminInviteCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        note: z.string().trim().max(200).optional(),
+        expiresAt: z.string().datetime().optional().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    // Verify caller is admin
+    const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin" as any,
+    });
+    if (roleErr) throw new Error(roleErr.message);
+    if (!isAdmin) throw new Error("Only administrators can generate invite codes");
+
+    // Create code
+    const code = makeCode();
+    const { data: inserted, error } = await supabase
+      .from("admin_invite_codes")
+      .insert({
+        code,
+        created_by: context.userId,
+        note: data.note || null,
+        expires_at: data.expiresAt || null,
+      })
+      .select("id,code,created_at,expires_at,note,used_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return inserted;
+  });
+
+export const listAdminInviteCodes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+
+    const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin" as any,
+    });
+    if (roleErr) throw new Error(roleErr.message);
+    if (!isAdmin) throw new Error("Only administrators can view invite codes");
+
+    const { data, error } = await supabase
+      .from("admin_invite_codes")
+      .select("id,code,created_at,expires_at,note,used_at,used_by")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
