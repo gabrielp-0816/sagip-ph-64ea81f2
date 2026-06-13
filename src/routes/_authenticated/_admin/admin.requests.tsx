@@ -57,12 +57,59 @@ function ManageRequests() {
 
   const setStatus = async (r: any, status: string, notes?: string) => {
     const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("fund_requests").update({ status: status as any, reviewer_notes: notes ?? r.reviewer_notes, reviewed_by: u.user?.id ?? null, reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    let linkedDisasterId: string | null = r.disaster_id ?? null;
+
+    // On approval: if the request isn't already tied to a disaster campaign,
+    // promote it into an active campaign so all citizens can see and donate.
+    if (status === "approved" && !linkedDisasterId && r.category_id) {
+      const campaignName = `${r.disaster_categories?.name ?? "Disaster"} relief — ${r.barangay}, ${r.city}`.slice(0, 120);
+      const { data: created, error: dErr } = await supabase
+        .from("disasters")
+        .insert({
+          name: campaignName,
+          category_id: r.category_id,
+          description: r.disaster_description,
+          location: r.exact_location,
+          city: r.city,
+          barangay: r.barangay,
+          severity: "moderate",
+          status: "active",
+          affected_individuals: r.affected_individuals ?? 0,
+          affected_families: Math.max(1, Math.ceil((r.affected_individuals ?? 1) / 5)),
+          required_funding: r.requested_amount ?? 0,
+          occurred_at: r.created_at ?? new Date().toISOString(),
+          created_by: u.user?.id ?? null,
+        })
+        .select("id")
+        .single();
+      if (dErr) return toast.error(`Could not create campaign: ${dErr.message}`);
+      linkedDisasterId = created.id;
+      await logAudit("disaster.create_from_request", "disasters", created.id, { request_id: r.id });
+    }
+
+    const { error } = await supabase
+      .from("fund_requests")
+      .update({
+        status: status as any,
+        reviewer_notes: notes ?? r.reviewer_notes,
+        reviewed_by: u.user?.id ?? null,
+        reviewed_at: new Date().toISOString(),
+        ...(linkedDisasterId && !r.disaster_id ? { disaster_id: linkedDisasterId } : {}),
+      })
+      .eq("id", r.id);
     if (error) return toast.error(error.message);
     await logAudit(`request.${status}`, "fund_requests", r.id, { notes });
-    await notify(r.requester_id, `Your aid request has been ${status.replace("_", " ")}`, notes || `Request: ${r.disaster_description.slice(0, 80)}`, status === "rejected" ? "high" : "normal");
+    await notify(
+      r.requester_id,
+      `Your aid request has been ${status.replace("_", " ")}`,
+      status === "approved" && linkedDisasterId && !r.disaster_id
+        ? `A disaster campaign has been opened for your request. Citizens can now donate to support it.`
+        : notes || `Request: ${r.disaster_description.slice(0, 80)}`,
+      status === "rejected" ? "high" : "normal",
+    );
     toast.success(`Request marked ${status}`);
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
+    qc.invalidateQueries({ queryKey: ["admin-disasters"] });
     setViewing(null);
   };
 
