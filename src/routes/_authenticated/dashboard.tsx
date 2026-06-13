@@ -71,14 +71,14 @@ function Dashboard() {
 
       <section className="mt-8 rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-5">
-          <h2 className="font-display text-lg font-semibold">Active disasters</h2>
+          <h2 className="font-display text-lg font-semibold">Active disaster campaigns</h2>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/disasters">View all <ArrowRight className="h-3 w-3" /></Link>
           </Button>
         </div>
         <ul className="divide-y divide-border">
           {(s?.disasters ?? []).length === 0 && (
-            <li className="p-10 text-center text-sm text-muted-foreground">No active disasters at this time.</li>
+            <li className="p-10 text-center text-sm text-muted-foreground">No active disaster campaigns at this time.</li>
           )}
           {(s?.disasters ?? []).map((d: any) => {
             const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;

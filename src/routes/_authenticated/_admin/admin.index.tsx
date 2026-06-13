@@ -59,7 +59,7 @@ function AdminOverview() {
         <Kpi label="Funds allocated" value={formatPHP(d?.totalA ?? 0)} accent="primary" icon={Wallet} />
         <Kpi label="Funds released" value={formatPHP(d?.totalR ?? 0)} accent="gold" icon={Activity} />
         <Kpi label="Requests pending review" value={String(d?.pending ?? 0)} accent="warning" icon={AlertTriangle} />
-        <Kpi label="Active disasters" value={String(d?.activeDisasters ?? 0)} icon={Siren} />
+        <Kpi label="Active disaster campaigns" value={String(d?.activeDisasters ?? 0)} icon={Siren} />
         <Kpi label="Registered users" value={String(d?.userCount ?? 0)} icon={Users} />
         <Kpi label="Available balance" value={formatPHP(Math.max(0, (d?.totalA ?? 0) - (d?.totalR ?? 0)))} accent="relief" icon={Wallet} />
         <Kpi label="Disbursement rate" value={d?.totalA ? Math.round(((d.totalR ?? 0) / d.totalA) * 100) + "%" : "0%"} icon={Activity} />

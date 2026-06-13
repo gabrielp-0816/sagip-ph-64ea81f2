@@ -107,7 +107,7 @@ function ManageRequests() {
             <tr>
               <th className="px-4 py-3">Requester</th>
               <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3">Disaster</th>
+              <th className="px-4 py-3">Campaign</th>
               <th className="px-4 py-3 text-right">Requested</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Submitted</th>

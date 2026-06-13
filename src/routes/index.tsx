@@ -72,12 +72,12 @@ function Landing() {
                 <Link to="/auth/signup">Register to donate <ArrowRight className="ml-1 h-4 w-4" /></Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="border-paper/30 bg-transparent text-paper hover:bg-paper/10 hover:text-paper">
-                <Link to="/disasters">View active disasters</Link>
+                <Link to="/disasters">View disaster campaigns</Link>
               </Button>
             </div>
             <dl className="mt-12 grid max-w-xl grid-cols-3 gap-6 border-t border-paper/15 pt-6">
               <Stat label="Total donations" value={formatPHP(data.totalDonations, { compact: true })} />
-              <Stat label="Active disasters" value={String(data.disasters.length)} />
+              <Stat label="Active campaigns" value={String(data.disasters.length)} />
               <Stat label="Funds released" value={formatPHP(data.totalReleased, { compact: true })} />
             </dl>
           </div>
@@ -114,11 +114,11 @@ function Landing() {
         </div>
       </section>
 
-      {/* ACTIVE DISASTERS */}
+      {/* ACTIVE DISASTER CAMPAIGNS */}
       <section className="border-y border-border bg-paper py-20">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="flex items-end justify-between gap-4">
-            <SectionHeader eyebrow="Active operations" title="Disasters requiring response" />
+            <SectionHeader eyebrow="Active operations" title="Disaster campaigns requiring response" />
             <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
               <Link to="/disasters">View all <ChevronRight className="h-4 w-4" /></Link>
             </Button>
@@ -126,7 +126,7 @@ function Landing() {
           <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {data.disasters.length === 0 && (
               <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center md:col-span-2 lg:col-span-3">
-                <p className="text-sm text-muted-foreground">No active disasters at this time. The city remains on standby.</p>
+                <p className="text-sm text-muted-foreground">No active disaster campaigns at this time. The city remains on standby.</p>
               </div>
             )}
             {data.disasters.map((d: any) => {

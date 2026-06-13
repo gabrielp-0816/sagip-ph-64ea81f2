@@ -22,7 +22,7 @@ import { toast } from "sonner";
 type NavItem = { to: string; label: string; icon: any; exact?: boolean };
 const nav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/admin/disasters", label: "Disasters", icon: Siren },
+  { to: "/admin/disasters", label: "Disaster campaigns", icon: Siren },
   { to: "/admin/allocations", label: "Fund allocations", icon: Wallet },
   { to: "/admin/requests", label: "Assistance requests", icon: ClipboardCheck },
   { to: "/admin/donations", label: "Donations", icon: HandHeart },

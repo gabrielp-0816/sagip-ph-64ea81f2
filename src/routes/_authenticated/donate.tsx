@@ -103,9 +103,9 @@ function DonatePage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-border bg-card p-6 sm:p-8">
           <section>
             <h2 className="font-display text-lg font-semibold">1. Choose where your donation goes</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Direct your funds to a specific disaster, or contribute to the general DRRM fund.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Direct your funds to a specific disaster campaign, or contribute to the general DRRM fund.</p>
             <div className="mt-4">
-              <Label htmlFor="disaster">Disaster operation</Label>
+              <Label htmlFor="disaster">Disaster campaign</Label>
               <Select value={watch("disaster_id") || "__general__"} onValueChange={(v) => setValue("disaster_id", v === "__general__" ? "" : v)}>
                 <SelectTrigger id="disaster" className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
