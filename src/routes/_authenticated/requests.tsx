@@ -12,20 +12,31 @@ export const Route = createFileRoute("/_authenticated/requests")({
 });
 
 function RequestsPage() {
-  const { data: requests, isLoading } = useQuery({
-    queryKey: ["my-requests"],
+  const { data: user } = useQuery({
+    queryKey: ["auth-user"],
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth.user?.id;
-      if (!uid) return [];
-      return (
-        await supabase
-          .from("fund_requests")
-          .select("id,disaster_description,status,requested_amount,estimated_damage_cost,affected_individuals,city,barangay,reviewer_notes,created_at,disasters(name),disaster_categories(name)")
-          .eq("requester_id", uid)
-          .order("created_at", { ascending: false })
-      ).data ?? [];
+      const { data } = await supabase.auth.getUser();
+      return data.user;
     },
+    staleTime: Infinity,
+  });
+
+  const uid = user?.id;
+
+  const { data: requests, isLoading } = useQuery({
+    queryKey: ["my-requests", uid],
+    queryFn: async () => {
+      if (!uid) return [];
+      const { data, error } = await supabase
+        .from("fund_requests")
+        .select("id,requester_id,disaster_description,status,requested_amount,estimated_damage_cost,affected_individuals,city,barangay,reviewer_notes,created_at,disasters(name),disaster_categories(name)")
+        .eq("requester_id", uid)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      // Defensive client-side filter — only rows created by the current user.
+      return (data ?? []).filter((r: any) => r.requester_id === uid);
+    },
+    enabled: !!uid,
   });
 
   return (
