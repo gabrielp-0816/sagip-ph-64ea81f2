@@ -81,6 +81,14 @@ function DonatePage() {
     if (!profile) { toast.error("Profile not loaded"); return; }
     setSubmitting(true);
     const { data: auth } = await supabase.auth.getUser();
+    if (vals.disaster_id) {
+      const { data: d } = await supabase.from("disasters").select("created_by").eq("id", vals.disaster_id).maybeSingle();
+      if (d?.created_by === auth.user?.id) {
+        setSubmitting(false);
+        toast.error("You can't donate to a disaster campaign you created.");
+        return;
+      }
+    }
     const donorName = vals.is_anonymous ? "Anonymous donor" : `${profile.first_name} ${profile.last_name}`;
     const { error } = await supabase.from("donations").insert({
       donor_id: auth.user?.id,
