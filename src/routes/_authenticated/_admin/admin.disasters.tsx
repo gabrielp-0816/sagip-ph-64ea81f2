@@ -101,7 +101,7 @@ function ManageDisasters() {
   };
 
   const close = async (id: string) => {
-    if (!confirm("Close this disaster? It will no longer accept new donations or requests.")) return;
+    if (!confirm("Close this disaster campaign? It will no longer accept new donations or requests.")) return;
     const { error } = await supabase.from("disasters").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", id);
     if (error) return toast.error(error.message);
     await logAudit("disaster.close", "disasters", id);
