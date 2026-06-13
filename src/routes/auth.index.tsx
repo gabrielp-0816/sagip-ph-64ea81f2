@@ -103,6 +103,10 @@ function SignInPage() {
             New to SAGIP?{" "}
             <Link to="/auth/signup" className="font-medium text-primary hover:underline">Create an account</Link>
           </p>
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            Administrator?{" "}
+            <Link to="/admin-auth" className="font-medium text-primary hover:underline">Sign in to admin portal</Link>
+          </p>
         </div>
       </div>
     </div>
