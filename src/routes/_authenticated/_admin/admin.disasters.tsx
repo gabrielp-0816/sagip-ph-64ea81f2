@@ -14,7 +14,7 @@ import { formatPHP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/disasters")({
-  head: () => ({ meta: [{ title: "Disaster management — SAGIP Admin" }] }),
+  head: () => ({ meta: [{ title: "Disaster campaign management — SAGIP Admin" }] }),
   component: ManageDisasters,
 });
 
@@ -111,18 +111,18 @@ function ManageDisasters() {
 
   return (
     <AdminShell
-      title="Disaster management"
-      subtitle="Register, update, and close disaster events the city is responding to."
+      title="Disaster campaigns"
+      subtitle="Register, update, and close disaster campaigns the city is responding to."
       actions={
         <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
           <DialogTrigger asChild>
-            <Button variant="default" onClick={() => setEditing(blank())}><Plus className="h-4 w-4" /> New disaster</Button>
+            <Button variant="default" onClick={() => setEditing(blank())}><Plus className="h-4 w-4" /> New campaign</Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-            <DialogHeader><DialogTitle>{editing?.id ? "Edit disaster" : "Register new disaster"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing?.id ? "Edit disaster campaign" : "Register new disaster campaign"}</DialogTitle></DialogHeader>
             {editing && (
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Event name *" className="sm:col-span-2"><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></Field>
+                <Field label="Campaign name *" className="sm:col-span-2"><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></Field>
                 <Field label="Category *">
                   <Select value={editing.category_id} onValueChange={(v) => setEditing({ ...editing, category_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
@@ -153,7 +153,7 @@ function ManageDisasters() {
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
-              <Button onClick={save}>{editing?.id ? "Save changes" : "Create disaster"}</Button>
+              <Button onClick={save}>{editing?.id ? "Save changes" : "Create campaign"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -163,7 +163,7 @@ function ManageDisasters() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Event</th>
+              <th className="px-4 py-3">Campaign</th>
               <th className="px-4 py-3">City</th>
               <th className="px-4 py-3">Severity</th>
               <th className="px-4 py-3">Status</th>
@@ -173,7 +173,7 @@ function ManageDisasters() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {(list.data ?? []).length === 0 && <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">No disasters registered yet.</td></tr>}
+            {(list.data ?? []).length === 0 && <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">No disaster campaigns registered yet.</td></tr>}
             {(list.data ?? []).map((d: any) => (
               <tr key={d.id} className="hover:bg-secondary/50">
                 <td className="px-4 py-3">
