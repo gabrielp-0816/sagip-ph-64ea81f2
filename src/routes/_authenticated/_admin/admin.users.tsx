@@ -79,6 +79,25 @@ function Users() {
     setSelectedRoles(new Set(rolesByUser[p.id] ?? ["citizen"]));
   };
 
+  const saveRoles = async () => {
+    if (!editing) return;
+    const current = new Set(rolesByUser[editing.id] ?? []);
+    const toAdd = [...selectedRoles].filter((r) => !current.has(r));
+    const toRemove = [...current].filter((r) => !selectedRoles.has(r));
+    for (const r of toAdd) {
+      const { error } = await supabase.from("user_roles").insert({ user_id: editing.id, role: r as any });
+      if (error) return toast.error(error.message);
+    }
+    for (const r of toRemove) {
+      const { error } = await supabase.from("user_roles").delete().eq("user_id", editing.id).eq("role", r as any);
+      if (error) return toast.error(error.message);
+    }
+    await logAudit("user.roles_update", "user_roles", editing.id, { roles: [...selectedRoles] });
+    toast.success("Roles updated");
+    setEditing(null);
+    qc.invalidateQueries({ queryKey: ["admin-roles"] });
+  };
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showCodes, setShowCodes] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -89,7 +108,7 @@ function Users() {
 
   const codes = useQuery({
     queryKey: ["admin-invite-codes"],
-    queryFn: async () => listCodes({ data: {} }),
+    queryFn: async () => listCodes(),
     enabled: showCodes,
   });
 
@@ -99,7 +118,7 @@ function Users() {
       const res = await genCode({ data: { note: note || undefined } });
       toast.success("Invite code generated");
       setNote("");
-      queryClient.invalidateQueries({ queryKey: ["admin-invite-codes"] });
+      qc.invalidateQueries({ queryKey: ["admin-invite-codes"] });
       await logAudit("admin.invite_code_created", "admin_invite_codes", res.id, { code: res.code });
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to generate code");
