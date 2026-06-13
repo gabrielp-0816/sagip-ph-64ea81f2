@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShieldCheck, ShieldOff, Search, UserCog } from "lucide-react";
+import { ShieldCheck, ShieldOff, Search, UserCog, KeyRound, Copy, Check } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { generateAdminInviteCode, listAdminInviteCodes } from "@/lib/auth/admin.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 const ROLES = ["admin", "official", "ngo", "citizen"] as const;
 
