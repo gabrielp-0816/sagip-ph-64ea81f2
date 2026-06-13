@@ -45,6 +45,7 @@ export const signUpAdmin = createServerFn({ method: "POST" })
       last_name: data.lastName,
       email: data.email,
       is_verified: true,
+      id_document_path: "",
     });
     if (profErr) {
       await supabaseAdmin.auth.admin.deleteUser(userId);
