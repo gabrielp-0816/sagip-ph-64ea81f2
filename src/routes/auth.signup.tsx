@@ -83,47 +83,47 @@ function SignupPage() {
 
   const onSubmit = async (vals: FormVals) => {
     if (!idFile) { toast.error("Please upload your government-issued ID"); return; }
+    if (idFile.size > 5 * 1024 * 1024) { toast.error("ID file must be 5MB or smaller"); return; }
     setLoading(true);
     try {
-      const { data: signUp, error: signErr } = await supabase.auth.signUp({
+      const idFileBase64 = await fileToBase64(idFile);
+      await signUpCitizen({
+        data: {
+          email: vals.email,
+          password: vals.password,
+          firstName: vals.firstName,
+          middleName: vals.middleName || null,
+          lastName: vals.lastName,
+          birthDate: vals.birthDate,
+          gender: vals.gender,
+          mobile: vals.mobile,
+          address: vals.address,
+          city: vals.city,
+          province: vals.province,
+          idType: vals.idType,
+          idNumber: vals.idNumber,
+          idFileName: idFile.name,
+          idFileMime: idFile.type || "application/octet-stream",
+          idFileBase64,
+        },
+      });
+
+      // Sign in immediately
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: vals.email,
         password: vals.password,
-        options: { emailRedirectTo: window.location.origin + "/dashboard" },
       });
-      if (signErr) throw signErr;
-      const userId = signUp.user?.id;
-      if (!userId) throw new Error("Account created but no user returned");
+      if (signInErr) {
+        toast.success("Account created. Please sign in.");
+        navigate({ to: "/auth" });
+        return;
+      }
 
-      // Upload ID
-      const ext = idFile.name.split(".").pop() ?? "jpg";
-      const path = `${userId}/id-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("verification-ids").upload(path, idFile, { upsert: true });
-      if (upErr) throw upErr;
-
-      // Create profile (RLS allows because auth.uid() = id)
-      const { error: profErr } = await supabase.from("profiles").insert({
-        id: userId,
-        first_name: vals.firstName,
-        middle_name: vals.middleName || null,
-        last_name: vals.lastName,
-        birth_date: vals.birthDate,
-        gender: vals.gender,
-        mobile_number: vals.mobile,
-        email: vals.email,
-        residential_address: vals.address,
-        city: vals.city,
-        province: vals.province,
-        id_type: vals.idType,
-        id_number: vals.idNumber,
-        id_document_path: path,
-      });
-      if (profErr) throw profErr;
-
-      toast.success("Registration submitted. Please check your email to confirm.");
+      toast.success("Welcome to SAGIP");
       await router.invalidate();
       navigate({ to: "/dashboard" });
     } catch (e: any) {
-      toast.error(e.message ?? "Registration failed");
+      toast.error(e?.message ?? "Registration failed");
     } finally {
       setLoading(false);
     }
