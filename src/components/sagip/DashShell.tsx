@@ -36,11 +36,12 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
   const meta = useQuery({
     queryKey: ["shell-meta"],
     queryFn: async () => {
-      const [profile, notif] = await Promise.all([
+      const [profile, notif, adminRole] = await Promise.all([
         supabase.from("profiles").select("first_name,last_name,is_verified,avatar_url").maybeSingle(),
         supabase.from("notifications").select("id").eq("is_read", false),
+        supabase.from("user_roles").select("role").eq("role", "admin").maybeSingle(),
       ]);
-      return { profile: profile.data, unread: notif.data?.length ?? 0 };
+      return { profile: profile.data, unread: notif.data?.length ?? 0, isAdmin: !!adminRole.data };
     },
   });
 
@@ -101,6 +102,11 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
                 )}
               </Link>
             </Button>
+            {meta.data?.isAdmin && (
+              <Button variant="outline" size="sm" asChild className="border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground">
+                <Link to="/admin"><ShieldCheck className="h-4 w-4" /> Admin console</Link>
+              </Button>
+            )}
             <Link
               to="/profile"
               className="hidden items-center gap-2 rounded-full border border-border bg-card px-2 py-1 pr-3 text-sm hover:bg-accent sm:flex"
