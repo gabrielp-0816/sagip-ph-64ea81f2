@@ -167,10 +167,10 @@ function RequestPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6 rounded-xl border border-border bg-card p-6 sm:p-8">
           <section>
-            <h2 className="font-display text-lg font-semibold">Disaster context</h2>
+            <h2 className="font-display text-lg font-semibold">Disaster campaign context</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="d">Active disaster (optional)</Label>
+                <Label htmlFor="d">Active disaster campaign (optional)</Label>
                 <Select value={watch("disaster_id") || "__none__"} onValueChange={(v) => {
                   setValue("disaster_id", v === "__none__" ? "" : v);
                   const d = disasters?.find((x) => x.id === v);
@@ -178,7 +178,7 @@ function RequestPage() {
                 }}>
                   <SelectTrigger id="d" className="mt-1.5"><SelectValue placeholder="Select if applicable" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Not tied to a tracked disaster</SelectItem>
+                    <SelectItem value="__none__">Not tied to a tracked campaign</SelectItem>
                     {(disasters ?? []).map((d) => (
                       <SelectItem key={d.id} value={d.id}>{d.name} — {d.city}</SelectItem>
                     ))}
