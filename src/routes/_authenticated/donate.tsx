@@ -48,14 +48,17 @@ function DonatePage() {
 
   const { data: disasters } = useQuery({
     queryKey: ["donate-disasters"],
-    queryFn: async () =>
-      (
-        await supabase
-          .from("disasters")
-          .select("id,name,city,required_funding,raised_amount")
-          .eq("status", "active")
-          .order("created_at", { ascending: false })
-      ).data ?? [],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id ?? "";
+      const { data } = await supabase
+        .from("disasters")
+        .select("id,name,city,required_funding,raised_amount,created_by")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      // Hide campaigns the current user created — they can't donate to their own.
+      return (data ?? []).filter((d: any) => d.created_by !== uid);
+    },
   });
 
   const { data: profile } = useQuery({

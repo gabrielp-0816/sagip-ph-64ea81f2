@@ -18,31 +18,36 @@ function Dashboard() {
   const summary = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id ?? "";
       const [donations, requests, allocations, disasters, myDonations, myRequests] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_requests").select("id,status"),
         supabase.from("fund_allocations").select("allocated_amount,released_amount"),
         supabase
           .from("disasters")
-          .select("id,name,city,severity,affected_families,required_funding,raised_amount,disaster_categories(name)")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,disaster_categories(name)")
           .eq("status", "active")
           .order("created_at", { ascending: false })
-          .limit(5),
-        supabase.from("donations").select("id,amount,created_at,disasters(name)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("fund_requests").select("id,disaster_description,status,requested_amount,created_at").order("created_at", { ascending: false }).limit(5),
+          .limit(20),
+        supabase.from("donations").select("id,amount,created_at,disasters(name)").eq("donor_id", uid).order("created_at", { ascending: false }).limit(5),
+        supabase.from("fund_requests").select("id,disaster_description,status,requested_amount,created_at").eq("requester_id", uid).order("created_at", { ascending: false }).limit(5),
       ]);
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocations.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
       const totalR = (allocations.data ?? []).reduce((s, a) => s + Number(a.released_amount), 0);
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
+      // Exclude campaigns the current user created — they shouldn't donate to their own.
+      const visibleDisasters = (disasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
       return {
         totalDonations: totalD,
         availableFunds: Math.max(0, totalA - totalR),
         fundsReleased: totalR,
         fundsPending: pending,
-        disasters: disasters.data ?? [],
+        disasters: visibleDisasters,
         myDonations: myDonations.data ?? [],
         myRequests: myRequests.data ?? [],
+        uid,
       };
     },
   });
