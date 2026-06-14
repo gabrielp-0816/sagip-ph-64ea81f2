@@ -47,6 +47,7 @@ export const ensureSuperAdmin = createServerFn({ method: "POST" }).handler(async
       province: "Metro Manila",
       id_type: "national_id",
       id_number: "SUPER-ADMIN",
+      id_document_path: "super-admin/system",
       is_verified: true,
     });
   }
