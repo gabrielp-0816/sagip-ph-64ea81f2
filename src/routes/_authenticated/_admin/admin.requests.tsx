@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPHP, formatDate, timeAgo } from "@/lib/format";
 import { toast } from "sonner";
-import { Check, X, Send, Eye } from "lucide-react";
+import { Check, X, Send, Eye, ShieldCheck, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/requests")({
   head: () => ({ meta: [{ title: "Assistance requests — SAGIP Admin" }] }),
@@ -24,7 +24,8 @@ function ManageRequests() {
   const [filter, setFilter] = useState<"all" | "pending" | "under_review" | "approved" | "rejected" | "released">("pending");
   const [viewing, setViewing] = useState<any | null>(null);
   const [releaseFor, setReleaseFor] = useState<any | null>(null);
-  const [releaseForm, setReleaseForm] = useState({ amount: 0, allocation_id: "", reference_number: "", notes: "" });
+  const [releaseForm, setReleaseForm] = useState({ amount: "", allocation_id: "", reference_number: "", notes: "" });
+  const [releaseProof, setReleaseProof] = useState<File | null>(null);
 
   const allocs = useQuery({ queryKey: ["allocs-available"], queryFn: async () => (await supabase.from("fund_allocations").select("id,label,allocated_amount,released_amount")).data ?? [] });
 
