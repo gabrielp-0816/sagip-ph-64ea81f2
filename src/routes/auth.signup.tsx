@@ -43,7 +43,16 @@ const schema = z.object({
   }, "You must be at least 18 years old"),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
-  email: z.string().email(),
+  email: z.string().email().refine((v) => {
+    // Stricter than zod's default: disallow leading/trailing punctuation in local part and "..".
+    if (v.includes("..")) return false;
+    const at = v.indexOf("@");
+    if (at < 1) return false;
+    const local = v.slice(0, at);
+    if (/^[.\-_]/.test(local) || /[.\-_]$/.test(local)) return false;
+    const domain = v.slice(at + 1);
+    return /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(domain);
+  }, "Enter a valid email address"),
   address: z.string().min(5, "Required").max(200),
   city: z.string().min(2).max(80),
   province: z.string().min(2).max(80),
