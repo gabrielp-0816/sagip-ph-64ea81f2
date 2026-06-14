@@ -81,7 +81,7 @@ function SignInPage() {
                 <Label htmlFor="password">Password</Label>
                 <Link to="/auth/forgot" className="text-xs font-medium text-primary hover:underline">Forgot password?</Link>
               </div>
-              <Input id="password" type="password" autoComplete="current-password" {...register("password")} className="mt-1.5" />
+              <PasswordInput id="password" autoComplete="current-password" {...register("password")} containerClassName="mt-1.5" />
               {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
             </div>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
