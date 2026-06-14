@@ -1,0 +1,1 @@
+ALTER VIEW public.transactions SET (security_invoker = true);
