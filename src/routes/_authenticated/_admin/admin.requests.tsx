@@ -116,31 +116,58 @@ function ManageRequests() {
 
   const release = async () => {
     if (!releaseFor) return;
-    if (releaseForm.amount <= 0) return toast.error("Enter an amount greater than zero");
+    const amt = Number(releaseForm.amount);
+    if (Number.isNaN(amt) || amt <= 0) return toast.error("Enter an amount greater than zero");
+    if (!releaseProof) return toast.error("Upload a proof of release (receipt, signed acknowledgment, or supporting document)");
+
     const { data: u } = await supabase.auth.getUser();
+    const uid = u.user?.id ?? "system";
+
+    // Upload proof to request-documents bucket under the requester's folder
+    const safeName = releaseProof.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const proofPath = `${releaseFor.requester_id}/${releaseFor.id}/release-${Date.now()}-${safeName}`;
+    const up = await supabase.storage.from("request-documents").upload(proofPath, releaseProof, { contentType: releaseProof.type });
+    if (up.error) return toast.error(`Proof upload failed: ${up.error.message}`);
+
     const { error: insErr } = await supabase.from("fund_releases").insert({
       request_id: releaseFor.id,
       allocation_id: releaseForm.allocation_id || null,
-      amount: releaseForm.amount,
+      amount: amt,
       reference_number: releaseForm.reference_number || null,
       notes: releaseForm.notes || null,
-      released_by: u.user?.id ?? null,
+      released_by: uid,
+      proof_url: up.data.path,
     });
     if (insErr) return toast.error(insErr.message);
     if (releaseForm.allocation_id) {
       const alloc = (allocs.data ?? []).find((a) => a.id === releaseForm.allocation_id);
       if (alloc) {
-        await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + releaseForm.amount }).eq("id", alloc.id);
+        await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
       }
     }
     await supabase.from("fund_requests").update({ status: "released" }).eq("id", releaseFor.id);
-    await logAudit("request.release", "fund_requests", releaseFor.id, releaseForm);
-    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(releaseForm.amount)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
-    toast.success("Funds released");
+    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path });
+    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
+    toast.success("Funds released with proof recorded");
     setReleaseFor(null);
-    setReleaseForm({ amount: 0, allocation_id: "", reference_number: "", notes: "" });
+    setReleaseForm({ amount: "", allocation_id: "", reference_number: "", notes: "" });
+    setReleaseProof(null);
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
     qc.invalidateQueries({ queryKey: ["allocs-available"] });
+  };
+
+  const verify = async (r: any) => {
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await supabase.from("fund_requests").update({
+      verification_status: "verified",
+      verified_by: u.user?.id ?? null,
+      verified_at: new Date().toISOString(),
+    }).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await logAudit("request.verify", "fund_requests", r.id);
+    toast.success("Disaster verified for this request");
+    qc.invalidateQueries({ queryKey: ["admin-requests"] });
+    setViewing((v: any) => v && v.id === r.id ? { ...v, verification_status: "verified" } : v);
   };
 
   return (
