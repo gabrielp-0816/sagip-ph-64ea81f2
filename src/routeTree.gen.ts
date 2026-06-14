@@ -32,6 +32,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
 import { Route as AuthenticatedAdminAdminIndexRouteImport } from './routes/_authenticated/_admin/admin.index'
 import { Route as AuthenticatedAdminAdminUsersRouteImport } from './routes/_authenticated/_admin/admin.users'
+import { Route as AuthenticatedAdminAdminTransactionsRouteImport } from './routes/_authenticated/_admin/admin.transactions'
 import { Route as AuthenticatedAdminAdminRequestsRouteImport } from './routes/_authenticated/_admin/admin.requests'
 import { Route as AuthenticatedAdminAdminDonationsRouteImport } from './routes/_authenticated/_admin/admin.donations'
 import { Route as AuthenticatedAdminAdminDisastersRouteImport } from './routes/_authenticated/_admin/admin.disasters'
@@ -154,6 +155,12 @@ const AuthenticatedAdminAdminUsersRoute =
     path: '/admin/users',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminAdminTransactionsRoute =
+  AuthenticatedAdminAdminTransactionsRouteImport.update({
+    id: '/admin/transactions',
+    path: '/admin/transactions',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminAdminRequestsRoute =
   AuthenticatedAdminAdminRequestsRouteImport.update({
     id: '/admin/requests',
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
   '/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
   '/admin/requests': typeof AuthenticatedAdminAdminRequestsRoute
+  '/admin/transactions': typeof AuthenticatedAdminAdminTransactionsRoute
   '/admin/users': typeof AuthenticatedAdminAdminUsersRoute
   '/admin/': typeof AuthenticatedAdminAdminIndexRoute
 }
@@ -236,6 +244,7 @@ export interface FileRoutesByTo {
   '/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
   '/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
   '/admin/requests': typeof AuthenticatedAdminAdminRequestsRoute
+  '/admin/transactions': typeof AuthenticatedAdminAdminTransactionsRoute
   '/admin/users': typeof AuthenticatedAdminAdminUsersRoute
   '/admin': typeof AuthenticatedAdminAdminIndexRoute
 }
@@ -267,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/_admin/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
   '/_authenticated/_admin/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
   '/_authenticated/_admin/admin/requests': typeof AuthenticatedAdminAdminRequestsRoute
+  '/_authenticated/_admin/admin/transactions': typeof AuthenticatedAdminAdminTransactionsRoute
   '/_authenticated/_admin/admin/users': typeof AuthenticatedAdminAdminUsersRoute
   '/_authenticated/_admin/admin/': typeof AuthenticatedAdminAdminIndexRoute
 }
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/admin/disasters'
     | '/admin/donations'
     | '/admin/requests'
+    | '/admin/transactions'
     | '/admin/users'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/admin/disasters'
     | '/admin/donations'
     | '/admin/requests'
+    | '/admin/transactions'
     | '/admin/users'
     | '/admin'
   id:
@@ -353,6 +365,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_admin/admin/disasters'
     | '/_authenticated/_admin/admin/donations'
     | '/_authenticated/_admin/admin/requests'
+    | '/_authenticated/_admin/admin/transactions'
     | '/_authenticated/_admin/admin/users'
     | '/_authenticated/_admin/admin/'
   fileRoutesById: FileRoutesById
@@ -532,6 +545,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAdminUsersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/_admin/admin/transactions': {
+      id: '/_authenticated/_admin/admin/transactions'
+      path: '/admin/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AuthenticatedAdminAdminTransactionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/_admin/admin/requests': {
       id: '/_authenticated/_admin/admin/requests'
       path: '/admin/requests'
@@ -576,6 +596,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAdminDisastersRoute: typeof AuthenticatedAdminAdminDisastersRoute
   AuthenticatedAdminAdminDonationsRoute: typeof AuthenticatedAdminAdminDonationsRoute
   AuthenticatedAdminAdminRequestsRoute: typeof AuthenticatedAdminAdminRequestsRoute
+  AuthenticatedAdminAdminTransactionsRoute: typeof AuthenticatedAdminAdminTransactionsRoute
   AuthenticatedAdminAdminUsersRoute: typeof AuthenticatedAdminAdminUsersRoute
   AuthenticatedAdminAdminIndexRoute: typeof AuthenticatedAdminAdminIndexRoute
 }
@@ -590,6 +611,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminAdminDonationsRoute:
       AuthenticatedAdminAdminDonationsRoute,
     AuthenticatedAdminAdminRequestsRoute: AuthenticatedAdminAdminRequestsRoute,
+    AuthenticatedAdminAdminTransactionsRoute:
+      AuthenticatedAdminAdminTransactionsRoute,
     AuthenticatedAdminAdminUsersRoute: AuthenticatedAdminAdminUsersRoute,
     AuthenticatedAdminAdminIndexRoute: AuthenticatedAdminAdminIndexRoute,
   }
