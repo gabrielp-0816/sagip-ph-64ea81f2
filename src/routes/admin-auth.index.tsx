@@ -1,17 +1,20 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureSuperAdmin } from "@/lib/auth/super-admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/sagip/PasswordInput";
 import { toast } from "sonner";
 import { Loader2, ShieldAlert } from "lucide-react";
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email"),
+  email: z.string().min(1, "Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 type FormVals = z.infer<typeof schema>;
@@ -27,9 +30,17 @@ function AdminSignIn() {
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema) });
 
+  // Idempotently ensure the built-in Super Admin (admin@sagip.local / admin123) exists on first load.
+  const ensure = useServerFn(ensureSuperAdmin);
+  useEffect(() => { ensure().catch(() => undefined); }, [ensure]);
+
   const onSubmit = async (vals: FormVals) => {
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email: vals.email, password: vals.password });
+    // Accept the well-known "admin" username as shorthand for the super admin email.
+    let email = vals.email.trim();
+    if (email.toLowerCase() === "admin") email = "admin@sagip.local";
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: vals.password });
     if (error || !data.user) {
       setLoading(false);
       toast.error(error?.message ?? "Sign-in failed");
@@ -57,9 +68,9 @@ function AdminSignIn() {
       <div className="hidden md:block">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-10">
           <p className="text-xs font-semibold uppercase tracking-widest text-gold">Restricted area</p>
-          <h1 className="mt-3 font-display text-3xl font-semibold leading-tight">Administrator portal</h1>
+          <h1 className="mt-3 font-display text-3xl font-semibold leading-tight">SAGIP Administrator Portal</h1>
           <p className="mt-4 text-sm text-paper/70">
-            For authorized City DRRM Office personnel only. All actions performed inside the admin console are recorded in
+            For authorized SAGIP DRRM personnel only. All actions performed inside the admin console are recorded in
             an immutable audit log.
           </p>
           <div className="mt-8 flex items-start gap-3 rounded-lg border border-gold/30 bg-gold/10 p-4 text-xs text-paper/80">
@@ -75,13 +86,13 @@ function AdminSignIn() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
             <div>
-              <Label htmlFor="email">Official email</Label>
-              <Input id="email" type="email" autoComplete="email" {...register("email")} className="mt-1.5" placeholder="name@city.gov.ph" />
+              <Label htmlFor="email">Email or username</Label>
+              <Input id="email" autoComplete="username" {...register("email")} className="mt-1.5" placeholder="name@city.gov.ph" />
               {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" autoComplete="current-password" {...register("password")} className="mt-1.5" />
+              <PasswordInput id="password" autoComplete="current-password" {...register("password")} containerClassName="mt-1.5" />
               {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
             </div>
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

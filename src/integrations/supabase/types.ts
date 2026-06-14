@@ -187,6 +187,7 @@ export type Database = {
           is_anonymous: boolean
           message: string | null
           payment_method: string
+          proof_url: string | null
           reference_number: string | null
         }
         Insert: {
@@ -200,6 +201,7 @@ export type Database = {
           is_anonymous?: boolean
           message?: string | null
           payment_method?: string
+          proof_url?: string | null
           reference_number?: string | null
         }
         Update: {
@@ -213,6 +215,7 @@ export type Database = {
           is_anonymous?: boolean
           message?: string | null
           payment_method?: string
+          proof_url?: string | null
           reference_number?: string | null
         }
         Relationships: [
@@ -285,6 +288,7 @@ export type Database = {
           amount: number
           id: string
           notes: string | null
+          proof_url: string | null
           reference_number: string | null
           released_at: string
           released_by: string | null
@@ -295,6 +299,7 @@ export type Database = {
           amount: number
           id?: string
           notes?: string | null
+          proof_url?: string | null
           reference_number?: string | null
           released_at?: string
           released_by?: string | null
@@ -305,6 +310,7 @@ export type Database = {
           amount?: number
           id?: string
           notes?: string | null
+          proof_url?: string | null
           reference_number?: string | null
           released_at?: string
           released_by?: string | null
@@ -346,25 +352,33 @@ export type Database = {
           reviewer_notes: string | null
           status: Database["public"]["Enums"]["request_status"]
           updated_at: string
+          verification_notes: string | null
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
-          affected_individuals?: number
+          affected_individuals: number
           barangay: string
           category_id?: string | null
           city: string
           created_at?: string
           disaster_description: string
           disaster_id?: string | null
-          estimated_damage_cost?: number
+          estimated_damage_cost: number
           exact_location: string
           id?: string
-          requested_amount?: number
+          requested_amount: number
           requester_id: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           reviewer_notes?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
+          verification_notes?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           affected_individuals?: number
@@ -384,6 +398,10 @@ export type Database = {
           reviewer_notes?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
+          verification_notes?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -560,7 +578,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      transactions: {
+        Row: {
+          amount: number | null
+          category: string | null
+          direction: string | null
+          id: string | null
+          occurred_at: string | null
+          party: string | null
+          proof_url: string | null
+          reference: string | null
+          reference_number: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

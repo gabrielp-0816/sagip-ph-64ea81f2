@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { METRO_MANILA_CITIES } from "@/lib/locations";
 import { toast } from "sonner";
 import { Loader2, Upload, FileText, AlertTriangle, X } from "lucide-react";
 
@@ -24,18 +25,18 @@ const schema = z.object({
   disaster_id: z.string().uuid().optional().or(z.literal("")),
   category_id: z.string().uuid({ message: "Select a disaster category" }),
   disaster_description: z.string().trim().min(20, "Describe the situation in at least 20 characters").max(2000),
-  city: z.string().trim().min(2, "Required").max(100),
+  city: z.string().trim().min(2, "Select your city").max(100),
   barangay: z.string().trim().min(2, "Required").max(100),
   exact_location: z.string().trim().min(5, "Required").max(200),
-  affected_individuals: z.coerce.number().int().min(1, "Must affect at least 1 person").max(1_000_000),
-  estimated_damage_cost: z.coerce.number().min(0).max(1_000_000_000),
-  requested_amount: z.coerce.number().positive("Enter an amount greater than zero").max(50_000_000),
+  affected_individuals: z.coerce.number({ invalid_type_error: "Required" }).int().min(1, "Must affect at least 1 person").max(1_000_000),
+  estimated_damage_cost: z.coerce.number({ invalid_type_error: "Required" }).min(0).max(1_000_000_000),
+  requested_amount: z.coerce.number({ invalid_type_error: "Required" }).positive("Enter an amount greater than zero").max(50_000_000),
 });
 
 type FormVals = z.infer<typeof schema>;
 
 const MAX_FILES = 5;
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 
 export const Route = createFileRoute("/_authenticated/request")({
@@ -69,34 +70,22 @@ function RequestPage() {
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      disaster_id: disaster ?? "",
-      affected_individuals: 1,
-      estimated_damage_cost: 0,
-      requested_amount: 0,
-    },
+    defaultValues: { disaster_id: disaster ?? "" },
   });
 
-  useEffect(() => {
-    if (profile?.city && !watch("city")) setValue("city", profile.city);
-  }, [profile, setValue, watch]);
-
+  // When linked to a disaster via URL search, pre-fill its category — but never pre-fill the user's city.
   useEffect(() => {
     if (disaster) {
       setValue("disaster_id", disaster);
       const d = disasters?.find((x) => x.id === disaster);
-      if (d) {
-        setValue("category_id", d.category_id);
-        setValue("city", d.city);
-      }
+      if (d) setValue("category_id", d.category_id);
     }
   }, [disaster, disasters, setValue]);
 
   const onFilesPicked = (list: FileList | null) => {
     if (!list) return;
-    const incoming = Array.from(list);
     const accepted: File[] = [];
-    for (const f of incoming) {
+    for (const f of Array.from(list)) {
       if (!ALLOWED.includes(f.type)) { toast.error(`${f.name}: only PDF, PNG, JPG, WEBP allowed`); continue; }
       if (f.size > MAX_SIZE) { toast.error(`${f.name}: exceeds 10 MB`); continue; }
       accepted.push(f);
@@ -109,6 +98,21 @@ function RequestPage() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const userId = auth.user!.id;
+
+      // Duplicate-request guard (one active request per disaster)
+      if (vals.disaster_id) {
+        const { data: dup } = await supabase
+          .from("fund_requests")
+          .select("id,status")
+          .eq("requester_id", userId)
+          .eq("disaster_id", vals.disaster_id)
+          .in("status", ["pending", "under_review", "approved"]);
+        if (dup && dup.length > 0) {
+          toast.error("You already have an active request for this disaster.");
+          setSubmitting(false);
+          return;
+        }
+      }
 
       const { data: created, error } = await supabase
         .from("fund_requests")
@@ -126,7 +130,14 @@ function RequestPage() {
         })
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        if ((error as any).code === "23505") {
+          toast.error("You already have an active request for this disaster.");
+          setSubmitting(false);
+          return;
+        }
+        throw error;
+      }
 
       for (const f of files) {
         const path = `${userId}/${created.id}/${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
@@ -142,8 +153,9 @@ function RequestPage() {
         });
       }
 
-      toast.success("Request submitted. You'll be notified once it is reviewed.");
+      toast.success("Request submitted. You'll be notified once SAGIP reviews it.");
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["my-requests"] });
       navigate({ to: "/requests" });
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to submit request");
@@ -153,13 +165,13 @@ function RequestPage() {
   };
 
   return (
-    <DashShell title="Request disaster assistance" subtitle="Submit a verified request for relief funding. All submissions are reviewed by the City DRRM Office.">
+    <DashShell title="Request disaster assistance" subtitle="Submit a verified request for SAGIP relief funding. All submissions are reviewed by the SAGIP DRRM Office.">
       {profile && !profile.is_verified && (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 text-warning-foreground" />
           <div>
             <p className="font-semibold text-ink">Your account is pending verification</p>
-            <p className="text-muted-foreground">You may still submit a request, but it will only be processed after the DRRM Office verifies your uploaded valid ID. Verification typically takes 1 business day.</p>
+            <p className="text-muted-foreground">You may still submit a request, but it will only be processed after SAGIP verifies your uploaded valid ID. Verification typically takes 1 business day.</p>
           </div>
         </div>
       )}
@@ -174,7 +186,7 @@ function RequestPage() {
                 <Select value={watch("disaster_id") || "__none__"} onValueChange={(v) => {
                   setValue("disaster_id", v === "__none__" ? "" : v);
                   const d = disasters?.find((x) => x.id === v);
-                  if (d) { setValue("category_id", d.category_id); setValue("city", d.city); }
+                  if (d) setValue("category_id", d.category_id);
                 }}>
                   <SelectTrigger id="d" className="mt-1.5"><SelectValue placeholder="Select if applicable" /></SelectTrigger>
                   <SelectContent>
@@ -209,13 +221,18 @@ function RequestPage() {
             <h2 className="font-display text-lg font-semibold">Location</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <Label htmlFor="city">City / Municipality</Label>
-                <Input id="city" className="mt-1.5" {...register("city")} />
+                <Label htmlFor="city">City</Label>
+                <Select value={watch("city") || ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
+                  <SelectTrigger id="city" className="mt-1.5"><SelectValue placeholder="Select Metro Manila city" /></SelectTrigger>
+                  <SelectContent>
+                    {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 {errors.city && <p className="mt-1 text-xs text-destructive">{errors.city.message}</p>}
               </div>
               <div>
                 <Label htmlFor="brgy">Barangay</Label>
-                <Input id="brgy" className="mt-1.5" {...register("barangay")} />
+                <Input id="brgy" className="mt-1.5" placeholder="Enter your barangay" {...register("barangay")} />
                 {errors.barangay && <p className="mt-1 text-xs text-destructive">{errors.barangay.message}</p>}
               </div>
               <div className="sm:col-span-2">
@@ -231,16 +248,17 @@ function RequestPage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div>
                 <Label htmlFor="ind">Individuals affected</Label>
-                <Input id="ind" type="number" min={1} className="mt-1.5" {...register("affected_individuals")} />
+                <Input id="ind" type="text" inputMode="numeric" className="mt-1.5" placeholder="e.g. 25" {...register("affected_individuals")} />
                 {errors.affected_individuals && <p className="mt-1 text-xs text-destructive">{errors.affected_individuals.message}</p>}
               </div>
               <div>
                 <Label htmlFor="dmg">Estimated damage (PHP)</Label>
-                <Input id="dmg" type="number" min={0} step="0.01" className="mt-1.5" {...register("estimated_damage_cost")} />
+                <Input id="dmg" type="text" inputMode="decimal" className="mt-1.5" placeholder="0.00" {...register("estimated_damage_cost")} />
+                {errors.estimated_damage_cost && <p className="mt-1 text-xs text-destructive">{errors.estimated_damage_cost.message}</p>}
               </div>
               <div>
                 <Label htmlFor="req">Amount requested (PHP)</Label>
-                <Input id="req" type="number" min={1} step="0.01" className="mt-1.5" {...register("requested_amount")} />
+                <Input id="req" type="text" inputMode="decimal" className="mt-1.5" placeholder="0.00" {...register("requested_amount")} />
                 {errors.requested_amount && <p className="mt-1 text-xs text-destructive">{errors.requested_amount.message}</p>}
               </div>
             </div>
@@ -284,9 +302,9 @@ function RequestPage() {
           <div className="rounded-xl border border-border bg-card p-6 text-sm">
             <h3 className="font-display text-base font-semibold">What happens next?</h3>
             <ol className="mt-3 space-y-3 text-muted-foreground">
-              <li><span className="font-semibold text-ink">1. Triage.</span> The DRRM Operations Center reviews your submission within 24 hours.</li>
-              <li><span className="font-semibold text-ink">2. Verification.</span> A field officer may contact you for additional details or a site visit.</li>
-              <li><span className="font-semibold text-ink">3. Release.</span> Approved funds are released via your enrolled disbursement channel.</li>
+              <li><span className="font-semibold text-ink">1. Triage.</span> SAGIP Operations reviews your submission within 24 hours.</li>
+              <li><span className="font-semibold text-ink">2. Verification.</span> A field officer confirms the disaster occurred at the reported location.</li>
+              <li><span className="font-semibold text-ink">3. Release.</span> Approved funds are released with documented proof.</li>
             </ol>
           </div>
           <div className="rounded-xl border border-warning/40 bg-warning/10 p-6 text-sm">

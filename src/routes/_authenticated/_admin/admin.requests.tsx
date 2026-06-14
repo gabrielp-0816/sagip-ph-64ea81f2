@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPHP, formatDate, timeAgo } from "@/lib/format";
 import { toast } from "sonner";
-import { Check, X, Send, Eye } from "lucide-react";
+import { Check, X, Send, Eye, ShieldCheck, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/requests")({
   head: () => ({ meta: [{ title: "Assistance requests — SAGIP Admin" }] }),
@@ -24,7 +24,8 @@ function ManageRequests() {
   const [filter, setFilter] = useState<"all" | "pending" | "under_review" | "approved" | "rejected" | "released">("pending");
   const [viewing, setViewing] = useState<any | null>(null);
   const [releaseFor, setReleaseFor] = useState<any | null>(null);
-  const [releaseForm, setReleaseForm] = useState({ amount: 0, allocation_id: "", reference_number: "", notes: "" });
+  const [releaseForm, setReleaseForm] = useState({ amount: "", allocation_id: "", reference_number: "", notes: "" });
+  const [releaseProof, setReleaseProof] = useState<File | null>(null);
 
   const allocs = useQuery({ queryKey: ["allocs-available"], queryFn: async () => (await supabase.from("fund_allocations").select("id,label,allocated_amount,released_amount")).data ?? [] });
 
@@ -115,31 +116,58 @@ function ManageRequests() {
 
   const release = async () => {
     if (!releaseFor) return;
-    if (releaseForm.amount <= 0) return toast.error("Enter an amount greater than zero");
+    const amt = Number(releaseForm.amount);
+    if (Number.isNaN(amt) || amt <= 0) return toast.error("Enter an amount greater than zero");
+    if (!releaseProof) return toast.error("Upload a proof of release (receipt, signed acknowledgment, or supporting document)");
+
     const { data: u } = await supabase.auth.getUser();
+    const uid = u.user?.id ?? "system";
+
+    // Upload proof to request-documents bucket under the requester's folder
+    const safeName = releaseProof.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const proofPath = `${releaseFor.requester_id}/${releaseFor.id}/release-${Date.now()}-${safeName}`;
+    const up = await supabase.storage.from("request-documents").upload(proofPath, releaseProof, { contentType: releaseProof.type });
+    if (up.error) return toast.error(`Proof upload failed: ${up.error.message}`);
+
     const { error: insErr } = await supabase.from("fund_releases").insert({
       request_id: releaseFor.id,
       allocation_id: releaseForm.allocation_id || null,
-      amount: releaseForm.amount,
+      amount: amt,
       reference_number: releaseForm.reference_number || null,
       notes: releaseForm.notes || null,
-      released_by: u.user?.id ?? null,
+      released_by: uid,
+      proof_url: up.data.path,
     });
     if (insErr) return toast.error(insErr.message);
     if (releaseForm.allocation_id) {
       const alloc = (allocs.data ?? []).find((a) => a.id === releaseForm.allocation_id);
       if (alloc) {
-        await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + releaseForm.amount }).eq("id", alloc.id);
+        await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
       }
     }
     await supabase.from("fund_requests").update({ status: "released" }).eq("id", releaseFor.id);
-    await logAudit("request.release", "fund_requests", releaseFor.id, releaseForm);
-    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(releaseForm.amount)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
-    toast.success("Funds released");
+    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path });
+    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
+    toast.success("Funds released with proof recorded");
     setReleaseFor(null);
-    setReleaseForm({ amount: 0, allocation_id: "", reference_number: "", notes: "" });
+    setReleaseForm({ amount: "", allocation_id: "", reference_number: "", notes: "" });
+    setReleaseProof(null);
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
     qc.invalidateQueries({ queryKey: ["allocs-available"] });
+  };
+
+  const verify = async (r: any) => {
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await supabase.from("fund_requests").update({
+      verification_status: "verified",
+      verified_by: u.user?.id ?? null,
+      verified_at: new Date().toISOString(),
+    }).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await logAudit("request.verify", "fund_requests", r.id);
+    toast.success("Disaster verified for this request");
+    qc.invalidateQueries({ queryKey: ["admin-requests"] });
+    setViewing((v: any) => v && v.id === r.id ? { ...v, verification_status: "verified" } : v);
   };
 
   return (
@@ -217,12 +245,32 @@ function ManageRequests() {
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2">
+            {viewing && (
+              <div className="mr-auto flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground">Background verification:</span>
+                {viewing.verification_status === "verified" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-relief/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-relief"><ShieldCheck className="h-3 w-3" /> Verified</span>
+                ) : (
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning-foreground">Unverified</span>
+                )}
+                {viewing.verification_status !== "verified" && viewing.status !== "released" && (
+                  <Button variant="outline" size="sm" onClick={() => verify(viewing)}><ShieldCheck className="h-3.5 w-3.5" /> Verify disaster</Button>
+                )}
+              </div>
+            )}
             {viewing && viewing.status !== "released" && (
               <>
                 {viewing.status === "pending" && <Button variant="outline" onClick={() => setStatus(viewing, "under_review")}>Mark under review</Button>}
                 {viewing.status !== "rejected" && viewing.status !== "released" && <Button variant="destructive" onClick={() => setStatus(viewing, "rejected", viewing.reviewer_notes)}><X className="h-4 w-4" /> Reject</Button>}
-                {viewing.status !== "approved" && viewing.status !== "released" && <Button variant="relief" onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes)}><Check className="h-4 w-4" /> Approve</Button>}
-                {viewing.status === "approved" && <Button onClick={() => { setReleaseFor(viewing); setReleaseForm({ amount: Number(viewing.requested_amount), allocation_id: "", reference_number: "", notes: "" }); setViewing(null); }}><Send className="h-4 w-4" /> Release funds</Button>}
+                {viewing.status !== "approved" && viewing.status !== "released" && (
+                  <Button
+                    variant="relief"
+                    disabled={viewing.verification_status !== "verified"}
+                    title={viewing.verification_status !== "verified" ? "Verify the disaster first" : undefined}
+                    onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes)}
+                  ><Check className="h-4 w-4" /> Approve</Button>
+                )}
+                {viewing.status === "approved" && <Button onClick={() => { setReleaseFor(viewing); setReleaseForm({ amount: String(viewing.requested_amount ?? ""), allocation_id: "", reference_number: "", notes: "" }); setReleaseProof(null); setViewing(null); }}><Send className="h-4 w-4" /> Release funds</Button>}
               </>
             )}
           </DialogFooter>
@@ -236,7 +284,25 @@ function ManageRequests() {
           {releaseFor && (
             <div className="grid gap-4 text-sm">
               <p className="rounded-md bg-secondary p-3 text-xs">For: <span className="font-medium">{releaseFor.profiles?.first_name} {releaseFor.profiles?.last_name}</span> · {formatPHP(releaseFor.requested_amount)} requested</p>
-              <div><Label className="text-xs">Amount to release (₱) *</Label><Input className="mt-1" type="number" min="0" step="100" value={releaseForm.amount} onChange={(e) => setReleaseForm({ ...releaseForm, amount: Number(e.target.value) })} /></div>
+              <div><Label className="text-xs">Amount to release (₱) *</Label><Input className="mt-1" type="text" inputMode="decimal" placeholder="0.00" value={releaseForm.amount} onChange={(e) => setReleaseForm({ ...releaseForm, amount: e.target.value.replace(/[^0-9.]/g, "") })} /></div>
+              <div>
+                <Label className="text-xs">Proof of release *</Label>
+                <label htmlFor="release-proof" className="mt-1 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-paper p-3 text-xs hover:border-primary/40">
+                  {releaseProof ? (
+                    <>
+                      <Upload className="h-4 w-4 text-relief" />
+                      <span className="truncate font-medium">{releaseProof.name}</span>
+                      <span className="ml-auto text-primary">Change</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Upload receipt, signed acknowledgment, or other proof (JPG, PNG, PDF — max 10MB)</span>
+                    </>
+                  )}
+                </label>
+                <input id="release-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setReleaseProof(e.target.files?.[0] ?? null)} />
+              </div>
               <div>
                 <Label className="text-xs">Charge against allocation</Label>
                 <Select value={releaseForm.allocation_id || "_none"} onValueChange={(v) => setReleaseForm({ ...releaseForm, allocation_id: v === "_none" ? "" : v })}>

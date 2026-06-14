@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,7 @@ const ACCENTS: Record<string, string> = {
 
 function NotificationsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["notifications"],
@@ -105,7 +106,7 @@ function NotificationsPage() {
                   </div>
                   {n.body && <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>}
                   <div className="mt-2 flex items-center gap-3">
-                    {n.link && <a href={n.link} className="text-xs font-medium text-primary hover:underline">View details →</a>}
+                    {n.link && <button type="button" onClick={() => { markRead(n.id); navigate({ to: n.link as any }); }} className="text-xs font-medium text-primary hover:underline">View details →</button>}
                     {!n.is_read && (
                       <button onClick={() => markRead(n.id)} className="text-xs font-medium text-muted-foreground hover:text-foreground">Mark as read</button>
                     )}

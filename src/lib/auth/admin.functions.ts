@@ -16,13 +16,19 @@ const signupSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(128),
   firstName: z.string().trim().min(1).max(80),
+  middleName: z.string().trim().max(80).optional().nullable(),
   lastName: z.string().trim().min(1).max(80),
+  birthDate: z.string().min(4).max(20),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
+  mobile: z.string().trim().min(7).max(20),
+  address: z.string().trim().min(5).max(200),
+  city: z.string().trim().min(2).max(80),
+  province: z.string().trim().min(2).max(80),
   inviteCode: z.string().trim().min(4).max(80),
   idType: idTypeEnum,
   idNumber: z.string().trim().min(3).max(50),
   idFileName: z.string().trim().min(1).max(200),
   idFileMime: z.string().trim().min(1).max(100),
-  // base64-encoded file bytes; cap at ~7MB encoded (~5MB raw)
   idFileBase64: z.string().min(10).max(7_500_000),
 });
 
@@ -76,12 +82,19 @@ export const signUpAdmin = createServerFn({ method: "POST" })
       throw new Error(`ID upload failed: ${upErr.message}`);
     }
 
-    // 5. Insert profile with verified ID details.
+    // 5. Insert profile with verified ID details and full personal info.
     const { error: profErr } = await supabaseAdmin.from("profiles").insert({
       id: userId,
       first_name: data.firstName,
+      middle_name: data.middleName || null,
       last_name: data.lastName,
+      birth_date: data.birthDate,
+      gender: data.gender,
+      mobile_number: data.mobile,
       email: data.email,
+      residential_address: data.address,
+      city: data.city,
+      province: data.province,
       id_type: data.idType,
       id_number: data.idNumber,
       id_document_path: path,

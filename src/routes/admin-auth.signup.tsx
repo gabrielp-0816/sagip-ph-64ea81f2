@@ -8,6 +8,7 @@ import { signUpAdmin } from "@/lib/auth/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/sagip/PasswordInput";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { METRO_MANILA_CITIES, isValidEmail } from "@/lib/locations";
 import { toast } from "sonner";
 import { Loader2, KeyRound, Upload, CheckCircle2 } from "lucide-react";
 
@@ -47,18 +49,22 @@ const ID_TYPE_LABELS: Record<z.infer<typeof idTypeEnum>, string> = {
 const schema = z
   .object({
     firstName: z.string().trim().min(1, "Required").max(80),
+    middleName: z.string().trim().max(80).optional(),
     lastName: z.string().trim().min(1, "Required").max(80),
-    email: z.string().email().max(255),
+    birthDate: z.string().min(4, "Required"),
+    gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
+    mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
+    email: z.string().refine(isValidEmail, "Enter a valid email address").transform((v) => v.toLowerCase()),
+    address: z.string().trim().min(5, "Required").max(200),
+    city: z.string().min(2, "Required").max(80),
+    province: z.string().min(2, "Required").max(80),
     inviteCode: z.string().trim().min(4, "Required").max(80),
     idType: idTypeEnum,
     idNumber: z.string().trim().min(3, "Required").max(50),
     password: passwordRules,
     confirm: z.string(),
   })
-  .refine((d) => d.password === d.confirm, {
-    message: "Passwords do not match",
-    path: ["confirm"],
-  });
+  .refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
 type FormVals = z.infer<typeof schema>;
 
@@ -80,7 +86,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // result is "data:<mime>;base64,<payload>"
       const idx = result.indexOf(",");
       resolve(idx >= 0 ? result.slice(idx + 1) : result);
     };
@@ -94,32 +99,19 @@ function AdminSignup() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [idFile, setIdFile] = useState<File | null>(null);
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<FormVals>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { idType: undefined as any },
+    defaultValues: { province: "Metro Manila" },
   });
 
   const idType = watch("idType");
+  const city = watch("city");
+  const gender = watch("gender");
 
   const onSubmit = async (vals: FormVals) => {
-    if (!idFile) {
-      toast.error("Please upload a clear photo or scan of your government-issued ID");
-      return;
-    }
-    if (!ALLOWED_MIME.includes(idFile.type)) {
-      toast.error("ID must be a JPG, PNG, WEBP, or PDF file");
-      return;
-    }
-    if (idFile.size > MAX_BYTES) {
-      toast.error("ID file must be 5MB or smaller");
-      return;
-    }
+    if (!idFile) { toast.error("Please upload a government-issued ID"); return; }
+    if (!ALLOWED_MIME.includes(idFile.type)) { toast.error("ID must be JPG, PNG, WEBP, or PDF"); return; }
+    if (idFile.size > MAX_BYTES) { toast.error("ID must be 5MB or smaller"); return; }
 
     setLoading(true);
     try {
@@ -129,7 +121,14 @@ function AdminSignup() {
           email: vals.email,
           password: vals.password,
           firstName: vals.firstName,
+          middleName: vals.middleName || null,
           lastName: vals.lastName,
+          birthDate: vals.birthDate,
+          gender: vals.gender,
+          mobile: vals.mobile,
+          address: vals.address,
+          city: vals.city,
+          province: vals.province,
           inviteCode: vals.inviteCode,
           idType: vals.idType,
           idNumber: vals.idNumber,
@@ -139,10 +138,7 @@ function AdminSignup() {
         },
       });
 
-      const { error: signErr } = await supabase.auth.signInWithPassword({
-        email: vals.email,
-        password: vals.password,
-      });
+      const { error: signErr } = await supabase.auth.signInWithPassword({ email: vals.email, password: vals.password });
       if (signErr) {
         toast.success("Admin account created. Please sign in.");
         navigate({ to: "/admin-auth" });
@@ -159,64 +155,75 @@ function AdminSignup() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 lg:px-8">
+    <div className="mx-auto max-w-3xl px-4 py-10 lg:px-8">
       <div className="rounded-2xl bg-paper p-8 text-foreground shadow-2xl sm:p-10">
         <div className="flex items-center gap-3">
-          <span className="rounded-lg bg-primary/10 p-2 text-primary">
-            <KeyRound className="h-5 w-5" />
-          </span>
+          <span className="rounded-lg bg-primary/10 p-2 text-primary"><KeyRound className="h-5 w-5" /></span>
           <div>
             <h1 className="font-display text-2xl font-semibold">Administrator registration</h1>
-            <p className="text-sm text-muted-foreground">
-              Requires a single-use invite code and a valid government-issued ID for identity
-              verification.
-            </p>
+            <p className="text-sm text-muted-foreground">Requires a single-use invite code, complete personal details, and a valid government-issued ID.</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="First name" error={errors.firstName?.message}>
-              <Input {...register("firstName")} />
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
+          <Section title="Personal information">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="First name" error={errors.firstName?.message}><Input {...register("firstName")} /></Field>
+              <Field label="Middle name" optional><Input {...register("middleName")} /></Field>
+              <Field label="Last name" error={errors.lastName?.message}><Input {...register("lastName")} /></Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Birth date" error={errors.birthDate?.message}>
+                <Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} />
+              </Field>
+              <Field label="Gender" error={errors.gender?.message}>
+                <Select value={gender ?? ""} onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Mobile number" error={errors.mobile?.message}>
+                <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
+              </Field>
+            </div>
+            <Field label="Email address" error={errors.email?.message}>
+              <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
             </Field>
-            <Field label="Last name" error={errors.lastName?.message}>
-              <Input {...register("lastName")} />
+            <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="City" error={errors.city?.message}>
+                <Select value={city ?? ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
+                  <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+                  <SelectContent>
+                    {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Province" error={errors.province?.message}>
+                <Input {...register("province")} defaultValue="Metro Manila" />
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="Invite code" description="A single-use code issued by an existing SAGIP administrator.">
+            <Field label="Invite code" error={errors.inviteCode?.message}>
+              <Input placeholder="SAGIP-ADMIN-XXXX" {...register("inviteCode")} className="font-mono uppercase" />
             </Field>
-          </div>
-          <Field label="Official email" error={errors.email?.message}>
-            <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
-          </Field>
-          <Field label="Invite code" error={errors.inviteCode?.message}>
-            <Input
-              placeholder="SAGIP-ADMIN-XXXX"
-              {...register("inviteCode")}
-              className="font-mono uppercase"
-            />
-          </Field>
+          </Section>
 
-          <div className="rounded-lg border border-border bg-muted/30 p-4">
-            <p className="font-display text-sm font-semibold">Identity verification</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Submit a valid government-issued ID. Documents are stored securely and reviewed by the
-              DRRM Office.
-            </p>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Section title="Identity verification" description="Documents are stored securely and reviewed by the SAGIP DRRM Office.">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="ID type" error={errors.idType?.message}>
-                <Select
-                  value={idType ?? ""}
-                  onValueChange={(v) =>
-                    setValue("idType", v as FormVals["idType"], { shouldValidate: true })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select ID type" />
-                  </SelectTrigger>
+                <Select value={idType ?? ""} onValueChange={(v) => setValue("idType", v as FormVals["idType"], { shouldValidate: true })}>
+                  <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
                   <SelectContent>
                     {(Object.keys(ID_TYPE_LABELS) as Array<keyof typeof ID_TYPE_LABELS>).map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {ID_TYPE_LABELS[k]}
-                      </SelectItem>
+                      <SelectItem key={k} value={k}>{ID_TYPE_LABELS[k]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -225,59 +232,39 @@ function AdminSignup() {
                 <Input {...register("idNumber")} placeholder="As printed on the ID" />
               </Field>
             </div>
+            <Label className="text-sm">ID document (JPG, PNG, WEBP, or PDF — max 5MB)</Label>
+            <label htmlFor="admin-id-file" className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-background p-3 text-sm transition-colors hover:bg-accent">
+              {idFile ? (
+                <>
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-relief" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{idFile.name}</p>
+                    <p className="text-xs text-muted-foreground">{(idFile.size / 1024).toFixed(0)} KB · {idFile.type || "unknown"}</p>
+                  </div>
+                  <span className="text-xs font-medium text-primary">Change file</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-medium">Upload your government-issued ID</p>
+                    <p className="text-xs text-muted-foreground">Ensure all text is legible.</p>
+                  </div>
+                </>
+              )}
+            </label>
+            <input id="admin-id-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setIdFile(e.target.files?.[0] ?? null)} />
+          </Section>
 
-            <div className="mt-4">
-              <Label className="text-sm">ID document (JPG, PNG, WEBP, or PDF — max 5MB)</Label>
-              <label
-                htmlFor="admin-id-file"
-                className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-background p-3 text-sm transition-colors hover:bg-muted/40"
-              >
-                {idFile ? (
-                  <>
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{idFile.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(idFile.size / 1024).toFixed(0)} KB · {idFile.type || "unknown"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-primary">Change file</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
-                    <div className="flex-1">
-                      <p className="font-medium">Upload your government-issued ID</p>
-                      <p className="text-xs text-muted-foreground">
-                        Both sides if applicable. Ensure all text is legible.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </label>
-              <input
-                id="admin-id-file"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                className="sr-only"
-                onChange={(e) => setIdFile(e.target.files?.[0] ?? null)}
-              />
+          <Section title="Password">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Password" error={errors.password?.message}><PasswordInput {...register("password")} /></Field>
+              <Field label="Confirm password" error={errors.confirm?.message}><PasswordInput {...register("confirm")} /></Field>
             </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Password" error={errors.password?.message}>
-              <Input type="password" {...register("password")} />
-            </Field>
-            <Field label="Confirm password" error={errors.confirm?.message}>
-              <Input type="password" {...register("confirm")} />
-            </Field>
-          </div>
+          </Section>
 
           <div className="flex items-center justify-between gap-3 border-t border-border pt-6">
-            <p className="text-xs text-muted-foreground">
-              By registering you agree to the DRRM Office acceptable-use policy and audit logging.
-            </p>
+            <p className="text-xs text-muted-foreground">By registering you agree to the SAGIP DRRM acceptable-use policy and audit logging.</p>
             <Button type="submit" size="lg" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create admin account
             </Button>
@@ -286,27 +273,27 @@ function AdminSignup() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already an administrator?{" "}
-          <Link to="/admin-auth" className="font-medium text-primary hover:underline">
-            Sign in
-          </Link>
+          <Link to="/admin-auth" className="font-medium text-primary hover:underline">Sign in</Link>
         </p>
       </div>
     </div>
   );
 }
 
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-lg border border-border bg-muted/30 p-4">
+      <p className="font-display text-sm font-semibold">{title}</p>
+      {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, error, optional, children }: { label: string; error?: string; optional?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="text-sm">{label}</Label>
+      <Label className="text-sm">{label}{optional && <span className="ml-1 text-xs font-normal text-muted-foreground">(optional)</span>}</Label>
       <div className="mt-1.5">{children}</div>
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>

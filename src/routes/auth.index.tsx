@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/sagip/PasswordInput";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -80,7 +81,7 @@ function SignInPage() {
                 <Label htmlFor="password">Password</Label>
                 <Link to="/auth/forgot" className="text-xs font-medium text-primary hover:underline">Forgot password?</Link>
               </div>
-              <Input id="password" type="password" autoComplete="current-password" {...register("password")} className="mt-1.5" />
+              <PasswordInput id="password" autoComplete="current-password" {...register("password")} containerClassName="mt-1.5" />
               {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
             </div>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
