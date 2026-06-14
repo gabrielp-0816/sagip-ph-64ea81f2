@@ -1,70 +1,57 @@
-# SAGIP — Build Plan
+This is a large multi-area request. I'll break it into phases so we can verify progress and so the scope stays clear. Before starting I have a few clarifying questions, then I'll proceed.
 
-SAGIP is a large system (auth, donations, fund requests, disaster management, admin console, reporting, real-time notifications). To ship something solid rather than a shallow demo of everything, I'll build it in **phases** and confirm before each next phase. All currency in ₱ (PHP).
+## Clarifying questions (please confirm)
 
-## Design Direction
+1. **Super Admin (`admin` / `admin123`)** — Lovable Cloud auth requires real email/password accounts (no plain usernames), and shipping a hardcoded `admin123` credential is a serious security risk. I recommend instead seeding a real super-admin via a one-time secure flow, OR using an email like `admin@sagip.local` with a strong password you set in a secret. Confirm which you want:
+   - (a) Seed `admin@sagip.local` with a password you provide privately (recommended)
+   - (b) Literally use `admin` / `admin123` (insecure, only for demo)
 
-Government portal aesthetic — clean, trustworthy, NOT AI-generic:
-- Palette: deep navy `#0B2F5B` primary, white surfaces, emerald `#0F7B5C` accent (relief/positive), amber `#C97A0E` for warnings, restrained red only for critical alerts
-- Typography: **Source Serif** for headings (civic/editorial feel), **Inter** for body and UI
-- Layout: structured grid, generous whitespace, clear data hierarchy, subtle motion only
-- All tokens defined in `src/styles.css` (oklch), no hardcoded colors in components
+2. **Metro Manila cities + barangays dropdown** — Do you want the full official PSGC barangay list (1,700+ barangays across 17 LGUs, large static dataset bundled into the app), or just the 17 Metro Manila cities with a free-text barangay field?
 
-## Tech Stack (already provisioned)
+3. **Proof of payment / proof of release uploads** — OK to store in existing private storage buckets (`request-documents` for proof of release, and a new `donation-proofs` bucket for donations)?
 
-- TanStack Start + React 19 + Tailwind v4 + shadcn
-- **Lovable Cloud** (Supabase under the hood) for DB, auth, storage, realtime — I'll enable it in Phase 1
-- Realtime updates via Supabase Realtime channels (equivalent to WebSockets)
-- Server functions (`createServerFn`) for fund approvals, releases, audit logging
+4. **One aid request per disaster** — Should this block only *pending/approved* requests (so users can re-apply after rejection), or block entirely once any request exists for that disaster?
 
-## Phase 1 — Foundation (this round)
+## Phased implementation plan
 
-1. Enable Lovable Cloud
-2. Design system: tokens, fonts, shadcn variants (`hero`, `gov`, `relief` buttons; card variants)
-3. **Landing page** (`/`): hero, services overview, active disasters preview, transparency stats, contact, footer
-4. **Auth pages** (`/auth`, `/auth/signup`, `/reset-password`):
-   - Email/password + Google sign-in
-   - Signup with full personal info, ID upload (storage bucket), 18+ validation, strong password (zod schema)
-   - `profiles` table + `user_roles` table (admin/citizen/ngo/official) with `has_role()` security definer function
-5. Database schema (migrations) for all core tables: profiles, user_roles, disasters, disaster_categories, fund_allocations, fund_requests, fund_releases, donations, notifications, audit_logs, uploaded_documents — with RLS + GRANTs
-6. Seed disaster categories + initial admin role assignment instructions
+### Phase 1 — Backend / schema
+- New `transactions` view or table aggregating donations + fund_releases (date, amount, category, status, direction)
+- Add `proof_url` column to `fund_releases` (required on release)
+- Add `proof_url` column to `donations` (required on submit)
+- Add `verification_status` + `verification_notes` to `fund_requests` for background verification step before approval
+- Unique partial index preventing duplicate fund_requests per (requester_id, disaster_id) based on Q4 answer
+- Seed super-admin user + role per Q1
+- New storage bucket `donation-proofs` (private) with RLS
+- Profiles: ensure admin signup writes city/province/address
 
-> **Note on default admin `admin / 1234`:** Lovable Cloud auth requires email + a real password. I'll instead seed an admin email (e.g. `admin@sagip.gov.ph`) you set the password for on first signup, then grant the `admin` role. Storing `1234` as a real password is a security risk I won't ship. Tell me if you'd prefer a different admin email.
+### Phase 2 — Admin side
+- Overview: audit every button, wire navigation, remove dead buttons
+- Disaster Campaigns: clear all default values, number inputs `type="text"` with numeric validation, no `0` defaults, no spinners
+- Fund Allocation: category dropdown sourced from `disaster_categories` table, empty numerics
+- Admin registration form: add Personal Information section (first/middle/last name, birth date, gender, mobile, address, city, province, ID type/number/upload) mirroring citizen signup
+- Transaction History page (admin) listing donations + releases unified
+- Fund release modal: required file upload for proof
+- Aid request approval: require verification step + notes before approve
+- UI polish: hover contrast tokens in `src/styles.css`, audit sidebar/menu hover states
 
-## Phase 2 — Citizen Dashboard
+### Phase 3 — Citizen side
+- Dashboard: "Request Aid" button → navigate to `/request?disaster_id=...&category=...`, pre-select category from disaster on the form
+- Donation form: clear all defaults (amount blank, proper phone placeholder `09XXXXXXXXX`), required proof-of-payment upload, replace "Office of DRRM" copy with SAGIP
+- Request Aid form: clear pre-filled city, add Metro Manila city dropdown + dependent barangay dropdown, fix alignment, block duplicate request per disaster with friendly error
+- My Requests: ensure sidebar active state highlights this route
+- Signup: strict email regex (no leading/trailing punctuation, valid TLD), server-side duplicate email/mobile/ID check
+- Notifications page: fix navigation trap (remove blocking modal / ensure back button + sidebar still work)
 
-- `/dashboard` shell with sidebar nav
-- Fund overview cards (live totals from DB via realtime)
-- Active disasters list + detail page
-- Donation flow (record donation → allocation → receipt PDF later)
-- Fund request submission (multi-step form + document/photo upload)
-- Notifications bell + dropdown (realtime channel)
-- Profile management + change password
+### Phase 4 — Cross-cutting
+- Auth login page: password show/hide eye icon (both citizen `/auth` and `/admin-auth`)
+- Sweep all `defaultValue={0}` / preset numeric/text values from forms
+- Consistent SAGIP branding pass
+- Verify build + visit each touched page
 
-## Phase 3 — Admin Console
+## Technical notes
+- Numeric inputs: use `<Input type="text" inputMode="numeric" pattern="[0-9]*">` + zod `z.coerce.number().positive()` so fields start empty and don't show spinners
+- Sidebar active state: use TanStack `<Link activeProps={{ className: ... }}>` and ensure `activeOptions={{ exact: false }}` where needed
+- Verification + proof of release will be enforced both client-side (form) and server-side (DB NOT NULL + RLS-safe server function)
+- Super admin seeded via migration calling `auth.admin` only works through a server function; I'll create a one-shot server function gated by a setup secret
 
-- `/admin` (gated by `admin` role)
-- Fund management: allocations CRUD, approve/reject/release requests
-- Disaster management: create/update/close disasters
-- Donation management + donor view
-- User management: approve/suspend/activate, role assignment
-- Audit logs viewer
-- Admin notifications with priority levels
-
-## Phase 4 — Reporting & Polish
-
-- Automated reports (donation, allocation, response, transparency, audit)
-- PDF / Excel / CSV export
-- Scheduled report jobs
-- Announcements + messaging between roles
-- Animations pass, accessibility audit, mobile polish
-- SEO: per-route metadata, sitemap.xml, robots.txt
-
-## What I Need From You
-
-1. **Confirm phased approach** (vs. trying to ship everything shallowly at once).
-2. **Admin account**: OK to use `admin@sagip.gov.ph` with a password you set, instead of `admin/1234`?
-3. **City branding**: any specific city (e.g. Quezon City, Cebu City)? Or generic "City Government of [City Name]" placeholder?
-4. **Payment processing for donations**: real payments (Stripe/Paddle/PayMongo) or record-only (manual bank transfer reference) for now?
-
-Once you confirm, I'll start Phase 1.
+Please answer Q1–Q4 so I can start with Phase 1 (the migration). Once the migration is approved, I'll execute Phases 2–4 in parallel batches.
