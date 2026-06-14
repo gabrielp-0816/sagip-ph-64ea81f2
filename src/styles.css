@@ -77,8 +77,8 @@
   --muted-foreground: oklch(0.45 0.02 258);
 
   /* Accent: lighter navy */
-  --accent: oklch(0.93 0.02 250);
-  --accent-foreground: oklch(0.22 0.06 258);
+  --accent: oklch(0.88 0.04 250);
+  --accent-foreground: oklch(0.18 0.08 258);
 
   /* Relief: emerald (positive) */
   --relief: oklch(0.48 0.12 162);
