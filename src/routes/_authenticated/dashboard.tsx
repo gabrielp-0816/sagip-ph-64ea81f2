@@ -125,9 +125,12 @@ function Dashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="flex">
-                  <Button variant="relief" size="sm" asChild className="w-full">
+                <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+                  <Button variant="relief" size="sm" asChild>
                     <Link to="/donate" search={{ disaster: d.id } as any}><HandHeart className="h-4 w-4" /> Donate</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/request" search={{ disaster: d.id } as any}>Request aid</Link>
                   </Button>
                 </div>
               </li>
