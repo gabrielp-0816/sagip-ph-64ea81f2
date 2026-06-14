@@ -21,23 +21,25 @@ export const Route = createFileRoute("/_authenticated/_admin/admin/allocations")
 function Allocations() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ label: "", category_id: "", disaster_id: "", allocated_amount: 0, notes: "" });
+  const [form, setForm] = useState({ label: "", category_id: "", disaster_id: "", allocated_amount: "", notes: "" });
 
   const cats = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("disaster_categories").select("*").order("name")).data ?? [] });
-  const disasters = useQuery({ queryKey: ["disaster-min"], queryFn: async () => (await supabase.from("disasters").select("id,name,status").neq("status", "closed").order("created_at", { ascending: false })).data ?? [] });
+  const disasters = useQuery({ queryKey: ["disaster-min"], queryFn: async () => (await supabase.from("disasters").select("id,name,status,category_id").neq("status", "closed").order("created_at", { ascending: false })).data ?? [] });
   const allocs = useQuery({
     queryKey: ["allocations"],
     queryFn: async () => (await supabase.from("fund_allocations").select("*,disaster_categories(name),disasters(name)").order("created_at", { ascending: false })).data ?? [],
   });
 
   const create = async () => {
-    if (!form.label || form.allocated_amount <= 0) return toast.error("Provide a label and a positive amount");
+    const amt = Number(form.allocated_amount);
+    if (!form.label) return toast.error("Provide a label");
+    if (Number.isNaN(amt) || amt <= 0) return toast.error("Enter a positive amount");
     const { data: u } = await supabase.auth.getUser();
     const { data, error } = await supabase.from("fund_allocations").insert({
       label: form.label,
       category_id: form.category_id || null,
       disaster_id: form.disaster_id || null,
-      allocated_amount: form.allocated_amount,
+      allocated_amount: amt,
       notes: form.notes || null,
       created_by: u.user?.id ?? null,
     }).select("id").single();
@@ -45,7 +47,7 @@ function Allocations() {
     await logAudit("allocation.create", "fund_allocations", data?.id, form);
     toast.success("Allocation created");
     setOpen(false);
-    setForm({ label: "", category_id: "", disaster_id: "", allocated_amount: 0, notes: "" });
+    setForm({ label: "", category_id: "", disaster_id: "", allocated_amount: "", notes: "" });
     qc.invalidateQueries({ queryKey: ["allocations"] });
   };
 
@@ -109,12 +111,19 @@ function Allocations() {
           <DialogHeader><DialogTitle>New fund allocation</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div><Label className="text-xs">Label *</Label><Input className="mt-1" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="e.g. Typhoon Pepito relief — Phase 1" /></div>
-            <div><Label className="text-xs">Amount (₱) *</Label><Input className="mt-1" type="number" min="0" step="100" value={form.allocated_amount} onChange={(e) => setForm({ ...form, allocated_amount: Number(e.target.value) })} /></div>
+            <div>
+              <Label className="text-xs">Amount (₱) *</Label>
+              <Input className="mt-1" type="text" inputMode="decimal" placeholder="0.00" value={form.allocated_amount} onChange={(e) => setForm({ ...form, allocated_amount: e.target.value.replace(/[^0-9.]/g, "") })} />
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label className="text-xs">Tie to disaster (optional)</Label>
-                <Select value={form.disaster_id || "_none"} onValueChange={(v) => setForm({ ...form, disaster_id: v === "_none" ? "" : v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <Select value={form.disaster_id || "_none"} onValueChange={(v) => {
+                  if (v === "_none") { setForm({ ...form, disaster_id: "" }); return; }
+                  const d = (disasters.data ?? []).find((x: any) => x.id === v);
+                  setForm({ ...form, disaster_id: v, category_id: d?.category_id ?? form.category_id });
+                }}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select disaster" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">— None —</SelectItem>
                     {(disasters.data ?? []).map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
@@ -122,14 +131,15 @@ function Allocations() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Category (optional)</Label>
+                <Label className="text-xs">Category</Label>
                 <Select value={form.category_id || "_none"} onValueChange={(v) => setForm({ ...form, category_id: v === "_none" ? "" : v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">— None —</SelectItem>
                     {(cats.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <p className="mt-1 text-[10px] text-muted-foreground">Categories are the same disaster types used in the Disaster Campaigns module.</p>
               </div>
             </div>
             <div><Label className="text-xs">Notes</Label><Textarea className="mt-1" rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
