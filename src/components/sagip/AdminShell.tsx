@@ -12,6 +12,7 @@ import {
   HandHeart,
   Users,
   ScrollText,
+  ArrowLeftRight,
   LogOut,
   Menu,
   Bell,
@@ -26,6 +27,7 @@ const nav: NavItem[] = [
   { to: "/admin/allocations", label: "Fund allocations", icon: Wallet },
   { to: "/admin/requests", label: "Assistance requests", icon: ClipboardCheck },
   { to: "/admin/donations", label: "Donations", icon: HandHeart },
+  { to: "/admin/transactions", label: "Transaction history", icon: ArrowLeftRight },
   { to: "/admin/users", label: "Users & roles", icon: Users },
   { to: "/admin/audit", label: "Audit log", icon: ScrollText },
 ];
