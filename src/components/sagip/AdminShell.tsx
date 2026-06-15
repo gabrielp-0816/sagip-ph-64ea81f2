@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useIsSuperAdmin } from "@/lib/auth/use-role";
 
 type NavItem = { to: string; label: string; icon: any; exact?: boolean; superOnly?: boolean };
 const nav: NavItem[] = [
