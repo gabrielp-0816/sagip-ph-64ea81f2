@@ -3,9 +3,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { formatPHP, timeAgo, formatDate } from "@/lib/format";
-import { Activity, HandHeart, ShieldAlert, TrendingUp, ArrowRight, MapPin } from "lucide-react";
+import { Activity, HandHeart, ShieldAlert, TrendingUp, ArrowRight, MapPin, Search } from "lucide-react";
 import { DashShell } from "@/components/sagip/DashShell";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
