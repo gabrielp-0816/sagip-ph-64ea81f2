@@ -86,7 +86,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
             </button>
             <Link to="/admin" className="flex items-center gap-3">
               <SagipLogo variant="light" />
-              <span className="hidden rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold sm:inline">Admin Console</span>
+              <span className={cn("hidden rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] sm:inline", isSuperAdmin ? "border-relief/50 bg-relief/15 text-relief" : "border-gold/40 bg-gold/10 text-gold")}>{isSuperAdmin ? "Super Admin" : "Admin Console"}</span>
             </Link>
           </div>
           <div className="flex items-center gap-2">
