@@ -23,6 +23,7 @@ import { Route as AdminAuthIndexRouteImport } from './routes/admin-auth.index'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
 import { Route as AdminAuthSignupRouteImport } from './routes/admin-auth.signup'
+import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
 import { Route as AuthenticatedRequestsRouteImport } from './routes/_authenticated/requests'
 import { Route as AuthenticatedRequestRouteImport } from './routes/_authenticated/request'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -108,6 +109,12 @@ const AdminAuthSignupRoute = AdminAuthSignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => AdminAuthRoute,
 } as any)
+const AuthenticatedTransactionsRoute =
+  AuthenticatedTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRequestsRoute = AuthenticatedRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -207,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/request': typeof AuthenticatedRequestRoute
   '/requests': typeof AuthenticatedRequestsRoute
+  '/transactions': typeof AuthenticatedTransactionsRoute
   '/admin-auth/signup': typeof AdminAuthSignupRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -234,6 +242,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/request': typeof AuthenticatedRequestRoute
   '/requests': typeof AuthenticatedRequestsRoute
+  '/transactions': typeof AuthenticatedTransactionsRoute
   '/admin-auth/signup': typeof AdminAuthSignupRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -266,6 +275,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/request': typeof AuthenticatedRequestRoute
   '/_authenticated/requests': typeof AuthenticatedRequestsRoute
+  '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/admin-auth/signup': typeof AdminAuthSignupRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/signup': typeof AuthSignupRoute
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/request'
     | '/requests'
+    | '/transactions'
     | '/admin-auth/signup'
     | '/auth/forgot'
     | '/auth/signup'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/request'
     | '/requests'
+    | '/transactions'
     | '/admin-auth/signup'
     | '/auth/forgot'
     | '/auth/signup'
@@ -355,6 +367,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/request'
     | '/_authenticated/requests'
+    | '/_authenticated/transactions'
     | '/admin-auth/signup'
     | '/auth/forgot'
     | '/auth/signup'
@@ -481,6 +494,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin-auth/signup'
       preLoaderRoute: typeof AdminAuthSignupRouteImport
       parentRoute: typeof AdminAuthRoute
+    }
+    '/_authenticated/transactions': {
+      id: '/_authenticated/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof AuthenticatedTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/requests': {
       id: '/_authenticated/requests'
@@ -630,6 +650,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRequestRoute: typeof AuthenticatedRequestRoute
   AuthenticatedRequestsRoute: typeof AuthenticatedRequestsRoute
+  AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -640,6 +661,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRequestRoute: AuthenticatedRequestRoute,
   AuthenticatedRequestsRoute: AuthenticatedRequestsRoute,
+  AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

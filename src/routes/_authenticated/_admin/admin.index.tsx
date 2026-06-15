@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/sagip/AdminShell";
 import { formatPHP, timeAgo } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Activity, HandHeart, Wallet, AlertTriangle, ArrowRight, Users, Siren } from "lucide-react";
+import { HandHeart, Wallet, AlertTriangle, ArrowRight, Siren, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/")({
   head: () => ({ meta: [{ title: "Admin overview — SAGIP" }] }),
@@ -17,14 +17,13 @@ function AdminOverview() {
   const q = useQuery({
     queryKey: ["admin-overview"],
     queryFn: async () => {
-      const [donations, allocs, requests, disasters, users, recentReqs, recentDonations] = await Promise.all([
+      const [donations, allocs, requests, disasters, recentReqs, profile] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_allocations").select("allocated_amount,released_amount"),
         supabase.from("fund_requests").select("id,status"),
         supabase.from("disasters").select("id,status"),
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("fund_requests").select("id,disaster_description,requested_amount,status,created_at").order("created_at", { ascending: false }).limit(6),
-        supabase.from("donations").select("id,donor_name,amount,created_at,is_anonymous,disasters(name)").order("created_at", { ascending: false }).limit(6),
+        supabase.from("fund_requests").select("id,disaster_description,requested_amount,status,created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("profiles").select("first_name,middle_name,last_name,email,mobile_number,city,province,id_type").maybeSingle(),
       ]);
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocs.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
@@ -32,10 +31,10 @@ function AdminOverview() {
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
       const activeDisasters = (disasters.data ?? []).filter((d) => d.status === "active").length;
       return {
-        totalD, totalA, totalR, pending, activeDisasters,
-        userCount: users.count ?? 0,
+        totalD, totalR, pending, activeDisasters,
+        available: Math.max(0, totalA - totalR),
         recentReqs: recentReqs.data ?? [],
-        recentDonations: recentDonations.data ?? [],
+        profile: profile.data,
       };
     },
   });
@@ -52,23 +51,22 @@ function AdminOverview() {
   }, [qc]);
 
   const d = q.data;
+  const p = d?.profile;
+  const fullName = p ? [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(" ") : "Administrator";
+
   return (
-    <AdminShell title="Operations overview" subtitle="Real-time view of fund operations, requests, and field activity.">
+    <AdminShell title="Operations overview" subtitle="A focused snapshot of fund operations and your administrator profile.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Donations received" value={formatPHP(d?.totalD ?? 0)} accent="relief" icon={HandHeart} />
-        <Kpi label="Funds allocated" value={formatPHP(d?.totalA ?? 0)} accent="primary" icon={Wallet} />
-        <Kpi label="Funds released" value={formatPHP(d?.totalR ?? 0)} accent="gold" icon={Activity} />
-        <Kpi label="Requests pending review" value={String(d?.pending ?? 0)} accent="warning" icon={AlertTriangle} />
-        <Kpi label="Active disaster campaigns" value={String(d?.activeDisasters ?? 0)} icon={Siren} />
-        <Kpi label="Registered users" value={String(d?.userCount ?? 0)} icon={Users} />
-        <Kpi label="Available balance" value={formatPHP(Math.max(0, (d?.totalA ?? 0) - (d?.totalR ?? 0)))} accent="relief" icon={Wallet} />
-        <Kpi label="Disbursement rate" value={d?.totalA ? Math.round(((d.totalR ?? 0) / d.totalA) * 100) + "%" : "0%"} icon={Activity} />
+        <Kpi label="Funds released" value={formatPHP(d?.totalR ?? 0)} accent="gold" icon={Wallet} />
+        <Kpi label="Active campaigns" value={String(d?.activeDisasters ?? 0)} icon={Siren} accent="primary" />
+        <Kpi label="Requests pending" value={String(d?.pending ?? 0)} accent="warning" icon={AlertTriangle} />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
-            <h2 className="font-display text-base font-semibold">Recent requests</h2>
+            <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
             <Button variant="ghost" size="sm" asChild><Link to="/admin/requests">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
           </div>
           <ul className="divide-y divide-border">
@@ -84,26 +82,34 @@ function AdminOverview() {
             ))}
           </ul>
         </section>
+
         <section className="rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border p-5">
-            <h2 className="font-display text-base font-semibold">Recent donations</h2>
-            <Button variant="ghost" size="sm" asChild><Link to="/admin/donations">View all <ArrowRight className="h-3 w-3" /></Link></Button>
+          <div className="flex items-center gap-2 border-b border-border p-5">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <h2 className="font-display text-base font-semibold">Administrator profile</h2>
           </div>
-          <ul className="divide-y divide-border">
-            {(d?.recentDonations ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No donations recorded yet.</li>}
-            {(d?.recentDonations ?? []).map((x: any) => (
-              <li key={x.id} className="flex items-center justify-between p-4 text-sm">
-                <div>
-                  <p className="font-medium">{x.is_anonymous ? "Anonymous donor" : x.donor_name}</p>
-                  <p className="text-xs text-muted-foreground">{x.disasters?.name ?? "General fund"} · {timeAgo(x.created_at)}</p>
-                </div>
-                <p className="font-display font-semibold tabular-nums text-relief">{formatPHP(x.amount)}</p>
-              </li>
-            ))}
-          </ul>
+          <dl className="grid grid-cols-1 gap-3 p-5 text-sm">
+            <Info label="Full name" value={fullName} />
+            <Info label="Email" value={p?.email ?? "—"} />
+            <Info label="Mobile" value={p?.mobile_number ?? "—"} />
+            <Info label="City / Province" value={p ? [p.city, p.province].filter(Boolean).join(", ") || "—" : "—"} />
+            <Info label="ID on file" value={p?.id_type ? p.id_type.replace(/_/g, " ").toUpperCase() : "—"} />
+          </dl>
+          <div className="border-t border-border p-4">
+            <Button variant="outline" size="sm" asChild className="w-full"><Link to="/profile">Edit personal information</Link></Button>
+          </div>
         </section>
       </div>
     </AdminShell>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-border pb-2 last:border-none last:pb-0">
+      <dt className="text-xs uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className="text-right text-sm font-medium text-ink">{value}</dd>
+    </div>
   );
 }
 

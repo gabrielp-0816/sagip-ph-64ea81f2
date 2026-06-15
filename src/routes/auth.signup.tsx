@@ -60,6 +60,8 @@ const schema = z.object({
   idNumber: z.string().min(3).max(50),
   password: passwordRules,
   confirm: z.string(),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms and Conditions" }) }),
+  acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "Consent to data processing is required under RA 10173" }) }),
 }).refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
 type FormVals = z.infer<typeof schema>;
@@ -84,7 +86,7 @@ function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [idFile, setIdFile] = useState<File | null>(null);
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any } });
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any, acceptTerms: false as any, acceptPrivacy: false as any } });
 
   const birthDate = watch("birthDate");
   const age = calcAge(birthDate);
@@ -208,8 +210,24 @@ function SignupPage() {
           <PasswordChecklist password={pw} />
         </Fieldset>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border pt-6">
-          <p className="text-xs text-muted-foreground">By registering, you agree to the City Government's Data Privacy Act compliance.</p>
+        <Fieldset title="Consent & agreements" description="Required under the Philippine Data Privacy Act of 2012 (RA 10173).">
+          <label className="flex items-start gap-3 rounded-md border border-border bg-paper p-3 text-sm">
+            <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptTerms")} />
+            <span className="text-muted-foreground">
+              I have read and agree to the <a href="/transparency" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">SAGIP Terms and Conditions</a>, including acceptable-use policies and the audit logging of all donations and assistance requests.
+            </span>
+          </label>
+          {errors.acceptTerms && <p className="text-xs text-destructive">{errors.acceptTerms.message as string}</p>}
+          <label className="flex items-start gap-3 rounded-md border border-border bg-paper p-3 text-sm">
+            <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptPrivacy")} />
+            <span className="text-muted-foreground">
+              <strong className="text-ink">Data Privacy Consent (RA 10173):</strong> I freely consent to SAGIP and the City DRRM Office collecting, processing, storing, and sharing my personal data and uploaded government ID strictly for identity verification, disaster relief operations, donor acknowledgment, and audit purposes, in accordance with the <a href="/about" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">SAGIP Privacy Notice</a>. I understand my rights to access, correct, and request deletion of my data under the Data Privacy Act of 2012.
+            </span>
+          </label>
+          {errors.acceptPrivacy && <p className="text-xs text-destructive">{errors.acceptPrivacy.message as string}</p>}
+        </Fieldset>
+
+        <div className="flex items-center justify-end gap-3 border-t border-border pt-6">
           <Button type="submit" size="lg" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create account
           </Button>

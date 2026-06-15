@@ -602,6 +602,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      recompute_disaster_raised: {
+        Args: { _disaster_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "official" | "ngo" | "citizen"
