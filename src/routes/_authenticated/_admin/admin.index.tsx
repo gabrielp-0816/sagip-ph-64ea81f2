@@ -63,7 +63,7 @@ function AdminOverview() {
         <Kpi label="Requests pending" value={String(d?.pending ?? 0)} accent="warning" icon={AlertTriangle} />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
