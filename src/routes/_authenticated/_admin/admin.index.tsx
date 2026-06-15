@@ -64,7 +64,7 @@ function AdminOverview() {
       </div>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <section className="rounded-xl border border-border bg-card">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
             <Button variant="ghost" size="sm" asChild><Link to="/admin/requests">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
@@ -73,7 +73,7 @@ function AdminOverview() {
             {(d?.recentReqs ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No requests yet.</li>}
             {(d?.recentReqs ?? []).map((r: any) => (
               <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{r.disaster_description}</p>
                   <p className="text-xs text-muted-foreground">{timeAgo(r.created_at)} · {formatPHP(r.requested_amount)}</p>
                 </div>
@@ -83,7 +83,7 @@ function AdminOverview() {
           </ul>
         </section>
 
-        <section className="rounded-xl border border-border bg-card">
+        <section className="min-w-0 rounded-xl border border-border bg-card">
           <div className="flex items-center gap-2 border-b border-border p-5">
             <ShieldCheck className="h-4 w-4 text-primary" />
             <h2 className="font-display text-base font-semibold">Administrator profile</h2>
