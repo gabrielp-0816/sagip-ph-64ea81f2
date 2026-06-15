@@ -14,6 +14,7 @@ import {
   Menu,
   ShieldCheck,
   Inbox,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ const nav = [
   { to: "/donate", label: "Donate", icon: HandHeart },
   { to: "/request", label: "Request aid", icon: FileText },
   { to: "/requests", label: "My requests", icon: Inbox },
+  { to: "/transactions", label: "Transaction history", icon: Receipt },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "My profile", icon: User },
 ] as const;
