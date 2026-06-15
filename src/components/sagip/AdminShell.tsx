@@ -40,6 +40,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const { isSuperAdmin } = useIsSuperAdmin();
 
   const meta = useQuery({
     queryKey: ["admin-shell-meta"],
