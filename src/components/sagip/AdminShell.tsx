@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type NavItem = { to: string; label: string; icon: any; exact?: boolean };
+type NavItem = { to: string; label: string; icon: any; exact?: boolean; superOnly?: boolean };
 const nav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/admin/disasters", label: "Disaster campaigns", icon: Siren },
@@ -30,7 +30,7 @@ const nav: NavItem[] = [
   { to: "/admin/donations", label: "Donations", icon: HandHeart },
   { to: "/admin/transactions", label: "Transaction history", icon: ArrowLeftRight },
   { to: "/admin/users", label: "Users & roles", icon: Users },
-  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+  { to: "/admin/audit", label: "Audit log", icon: ScrollText, superOnly: true },
   { to: "/profile", label: "My profile", icon: User },
 ];
 
