@@ -168,7 +168,7 @@ function Dashboard() {
         <section className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Your assistance requests</h2>
-            <Button variant="ghost" size="sm" asChild><Link to="/requests">View all</Link></Button>
+            <Button variant="ghost" size="sm" onClick={() => setOpenDialog("requests")}>View all <ArrowRight className="h-3 w-3" /></Button>
           </div>
           <ul className="divide-y divide-border">
             {(s?.myRequests ?? []).length === 0 && (
