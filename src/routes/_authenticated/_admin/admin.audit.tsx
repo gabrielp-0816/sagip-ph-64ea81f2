@@ -9,6 +9,11 @@ import { Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/audit")({
   head: () => ({ meta: [{ title: "Audit log — SAGIP Admin" }] }),
+  beforeLoad: ({ context }) => {
+    if (!(context as any).isSuperAdmin) {
+      throw redirect({ to: "/admin" });
+    }
+  },
   component: Audit,
 });
 
