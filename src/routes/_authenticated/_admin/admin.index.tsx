@@ -17,11 +17,17 @@ function AdminOverview() {
   const q = useQuery({
     queryKey: ["admin-overview"],
     queryFn: async () => {
-      const [donations, allocs, requests, disasters, recentReqs, recentDonations] = await Promise.all([
+      const [donations, allocs, requests, disasters, inactiveDisasters, recentReqs, recentDonations] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_allocations").select("allocated_amount,released_amount"),
         supabase.from("fund_requests").select("id,status"),
         supabase.from("disasters").select("id,status"),
+        supabase
+          .from("disasters")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,status,disaster_categories(name),created_at")
+          .neq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(10),
         supabase.from("fund_requests").select("id,disaster_description,requested_amount,status,created_at").order("created_at", { ascending: false }).limit(5),
         supabase
           .from("donations")
@@ -29,6 +35,7 @@ function AdminOverview() {
           .order("created_at", { ascending: false })
           .limit(5),
       ]);
+
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocs.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
       const totalR = (allocs.data ?? []).reduce((s, a) => s + Number(a.released_amount), 0);
@@ -39,7 +46,9 @@ function AdminOverview() {
         available: Math.max(0, totalA - totalR),
         recentReqs: recentReqs.data ?? [],
         recentDonations: recentDonations.data ?? [],
+        inactiveDisasters: inactiveDisasters.data ?? [],
       };
+
     },
   });
 
@@ -111,7 +120,40 @@ function AdminOverview() {
           </ul>
         </section>
       </div>
+
+      <section className="mt-8 min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border p-5">
+          <h2 className="font-display text-base font-semibold">Inactive / closed disaster campaigns</h2>
+          <Button variant="ghost" size="sm" asChild><Link to="/admin/disasters">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
+        </div>
+        <ul className="divide-y divide-border">
+          {(d?.inactiveDisasters ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No inactive campaigns.</li>}
+          {(d?.inactiveDisasters ?? []).map((d: any) => {
+            const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+            return (
+              <li key={d.id} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
+                  <p className="mt-0.5 font-medium">{d.name}</p>
+                  <p className="text-xs text-muted-foreground">{d.city} · {d.affected_families.toLocaleString()} families · {timeAgo(d.created_at)}</p>
+                  <div className="mt-2 max-w-md">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="text-muted-foreground">Final funding</span>
+                      <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full bg-muted-foreground" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <span className="inline-flex items-center justify-center rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.status}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
     </AdminShell>
+
   );
 }
 
