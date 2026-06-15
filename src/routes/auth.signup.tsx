@@ -86,7 +86,7 @@ function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [idFile, setIdFile] = useState<File | null>(null);
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any } });
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any, acceptTerms: false as any, acceptPrivacy: false as any } });
 
   const birthDate = watch("birthDate");
   const age = calcAge(birthDate);
