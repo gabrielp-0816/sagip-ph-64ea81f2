@@ -67,6 +67,40 @@ function AdminOverview() {
 
   const d = q.data;
 
+  const [iStatus, setIStatus] = useState<string>("all");
+  const [iName, setIName] = useState("");
+  const [iFrom, setIFrom] = useState("");
+  const [iTo, setITo] = useState("");
+  const [iSort, setISort] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">("date_desc");
+
+  const inactiveAll = (d?.inactiveDisasters ?? []) as any[];
+  const inactiveStatusOptions = useMemo(
+    () => Array.from(new Set(inactiveAll.map((x) => x.status).filter(Boolean))) as string[],
+    [inactiveAll],
+  );
+  const inactiveFiltered = useMemo(() => {
+    return inactiveAll
+      .filter((x) => iStatus === "all" || x.status === iStatus)
+      .filter((x) => !iName.trim() || x.name?.toLowerCase().includes(iName.trim().toLowerCase()))
+      .filter((x) => {
+        const ref = x.occurred_at ?? x.created_at;
+        if (!ref) return true;
+        const t = new Date(ref).getTime();
+        if (iFrom && t < new Date(iFrom).getTime()) return false;
+        if (iTo && t > new Date(iTo).getTime() + 86_400_000 - 1) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (iSort === "name_asc") return a.name.localeCompare(b.name);
+        if (iSort === "name_desc") return b.name.localeCompare(a.name);
+        const av = new Date(a.occurred_at ?? a.created_at).getTime();
+        const bv = new Date(b.occurred_at ?? b.created_at).getTime();
+        return iSort === "date_asc" ? av - bv : bv - av;
+      });
+  }, [inactiveAll, iStatus, iName, iFrom, iTo, iSort]);
+  const resetInactiveFilters = () => { setIStatus("all"); setIName(""); setIFrom(""); setITo(""); setISort("date_desc"); };
+
+
   return (
     <AdminShell title="Operations overview" subtitle="A focused snapshot of fund operations and recent citizen donations.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
