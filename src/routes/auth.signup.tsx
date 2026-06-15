@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TermsDialog } from "@/components/sagip/TermsDialog";
 import { toast } from "sonner";
-import { Loader2, Upload, CheckCircle2 } from "lucide-react";
+import { Loader2, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check } from "lucide-react";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -44,7 +45,6 @@ const schema = z.object({
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
   email: z.string().email().refine((v) => {
-    // Stricter than zod's default: disallow leading/trailing punctuation in local part and "..".
     if (v.includes("..")) return false;
     const at = v.indexOf("@");
     if (at < 1) return false;
@@ -81,19 +81,44 @@ function calcAge(birth: string) {
   return a >= 0 ? String(a) : "";
 }
 
+const STEPS = [
+  { key: "personal", label: "Personal Information" },
+  { key: "identity", label: "Identity Verification" },
+  { key: "password", label: "Password" },
+  { key: "consent", label: "Consent & Agreements" },
+] as const;
+
+const STEP_FIELDS: Record<number, (keyof FormVals)[]> = {
+  0: ["firstName", "middleName", "lastName", "birthDate", "gender", "mobile", "email", "address", "city", "province"],
+  1: ["idType", "idNumber"],
+  2: ["password", "confirm"],
+  3: ["acceptTerms", "acceptPrivacy"],
+};
+
 function SignupPage() {
   const navigate = useNavigate();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [idFile, setIdFile] = useState<File | null>(null);
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any, acceptTerms: false as any, acceptPrivacy: false as any } });
+  const [step, setStep] = useState(0);
+  const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any, acceptTerms: false as any, acceptPrivacy: false as any } });
 
   const birthDate = watch("birthDate");
   const age = calcAge(birthDate);
   const pw = watch("password") ?? "";
 
+  const next = async () => {
+    const fields = STEP_FIELDS[step];
+    const ok = await trigger(fields as any);
+    if (!ok) return;
+    if (step === 1 && !idFile) { toast.error("Please upload your government-issued ID"); return; }
+    if (step === 1 && idFile && idFile.size > 5 * 1024 * 1024) { toast.error("ID file must be 5MB or smaller"); return; }
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const back = () => setStep((s) => Math.max(s - 1, 0));
+
   const onSubmit = async (vals: FormVals) => {
-    if (!idFile) { toast.error("Please upload your government-issued ID"); return; }
+    if (!idFile) { toast.error("Please upload your government-issued ID"); setStep(1); return; }
     if (idFile.size > 5 * 1024 * 1024) { toast.error("ID file must be 5MB or smaller"); return; }
     setLoading(true);
     try {
@@ -119,7 +144,6 @@ function SignupPage() {
         },
       });
 
-      // Sign in immediately
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: vals.email,
         password: vals.password,
@@ -140,101 +164,152 @@ function SignupPage() {
     }
   };
 
+  const isLast = step === STEPS.length - 1;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 lg:px-8">
       <h1 className="font-display text-3xl font-semibold">Create your SAGIP account</h1>
       <p className="mt-1 text-sm text-muted-foreground">All applicants must be 18 years or older and provide a valid government-issued ID.</p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-8">
-        <Fieldset title="Personal information">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="First name" error={errors.firstName?.message}><Input {...register("firstName")} /></Field>
-            <Field label="Middle name" optional><Input {...register("middleName")} /></Field>
-            <Field label="Last name" error={errors.lastName?.message}><Input {...register("lastName")} /></Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Birth date" error={errors.birthDate?.message}><Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} /></Field>
-            <Field label="Age"><Input value={age} readOnly disabled placeholder="—" /></Field>
-            <Field label="Gender" error={errors.gender?.message}>
-              <Select onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                  <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Mobile number" error={errors.mobile?.message}><Input placeholder="09XXXXXXXXX" {...register("mobile")} /></Field>
-            <Field label="Email address" error={errors.email?.message}><Input type="email" {...register("email")} /></Field>
-          </div>
-          <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="City" error={errors.city?.message}><Input {...register("city")} /></Field>
-            <Field label="Province" error={errors.province?.message}><Input {...register("province")} /></Field>
-          </div>
-        </Fieldset>
+      <Stepper step={step} />
 
-        <Fieldset title="Identity verification" description="Upload a clear photo of one valid government ID. You must be 18+ to register.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="ID type" error={errors.idType?.message}>
-              <Select onValueChange={(v: any) => setValue("idType", v, { shouldValidate: true })}>
-                <SelectTrigger><SelectValue placeholder="Select an ID" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="national_id">National ID (PhilSys)</SelectItem>
-                  <SelectItem value="drivers_license">Driver's License</SelectItem>
-                  <SelectItem value="passport">Passport</SelectItem>
-                  <SelectItem value="umid">UMID</SelectItem>
-                  <SelectItem value="postal_id">Postal ID</SelectItem>
-                  <SelectItem value="voters_id">Voter's ID</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="ID number" error={errors.idNumber?.message}><Input {...register("idNumber")} /></Field>
-          </div>
-          <Label className="block">ID document</Label>
-          <label className="flex cursor-pointer items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-paper px-4 py-8 text-sm text-muted-foreground hover:border-primary hover:bg-accent">
-            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setIdFile(e.target.files?.[0] ?? null)} />
-            {idFile ? (<><CheckCircle2 className="h-5 w-5 text-relief" /><span className="font-medium text-foreground">{idFile.name}</span></>) : (<><Upload className="h-5 w-5" /> Click to upload (JPG, PNG, PDF)</>)}
-          </label>
-        </Fieldset>
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
+        {step === 0 && (
+          <Fieldset title="Personal information">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="First name" error={errors.firstName?.message}><Input {...register("firstName")} /></Field>
+              <Field label="Middle name" optional><Input {...register("middleName")} /></Field>
+              <Field label="Last name" error={errors.lastName?.message}><Input {...register("lastName")} /></Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Birth date" error={errors.birthDate?.message}><Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} /></Field>
+              <Field label="Age"><Input value={age} readOnly disabled placeholder="—" /></Field>
+              <Field label="Gender" error={errors.gender?.message}>
+                <Select onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })} value={watch("gender") ?? ""}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Mobile number" error={errors.mobile?.message}><Input placeholder="09XXXXXXXXX" {...register("mobile")} /></Field>
+              <Field label="Email address" error={errors.email?.message}><Input type="email" {...register("email")} /></Field>
+            </div>
+            <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="City" error={errors.city?.message}><Input {...register("city")} /></Field>
+              <Field label="Province" error={errors.province?.message}><Input {...register("province")} /></Field>
+            </div>
+          </Fieldset>
+        )}
 
-        <Fieldset title="Password" description="Minimum 8 characters with uppercase, lowercase, number, and special character.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Password" error={errors.password?.message}><Input type="password" {...register("password")} /></Field>
-            <Field label="Confirm password" error={errors.confirm?.message}><Input type="password" {...register("confirm")} /></Field>
-          </div>
-          <PasswordChecklist password={pw} />
-        </Fieldset>
+        {step === 1 && (
+          <Fieldset title="Identity verification" description="Upload a clear photo of one valid government ID. You must be 18+ to register.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="ID type" error={errors.idType?.message}>
+                <Select onValueChange={(v: any) => setValue("idType", v, { shouldValidate: true })} value={watch("idType") ?? ""}>
+                  <SelectTrigger><SelectValue placeholder="Select an ID" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="national_id">National ID (PhilSys)</SelectItem>
+                    <SelectItem value="drivers_license">Driver's License</SelectItem>
+                    <SelectItem value="passport">Passport</SelectItem>
+                    <SelectItem value="umid">UMID</SelectItem>
+                    <SelectItem value="postal_id">Postal ID</SelectItem>
+                    <SelectItem value="voters_id">Voter's ID</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="ID number" error={errors.idNumber?.message}><Input {...register("idNumber")} /></Field>
+            </div>
+            <Label className="block">ID document</Label>
+            <label className="flex cursor-pointer items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-paper px-4 py-8 text-sm text-muted-foreground hover:border-primary hover:bg-accent">
+              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setIdFile(e.target.files?.[0] ?? null)} />
+              {idFile ? (<><CheckCircle2 className="h-5 w-5 text-relief" /><span className="font-medium text-foreground">{idFile.name}</span></>) : (<><Upload className="h-5 w-5" /> Click to upload (JPG, PNG, PDF)</>)}
+            </label>
+          </Fieldset>
+        )}
 
-        <Fieldset title="Consent & agreements" description="Required under the Philippine Data Privacy Act of 2012 (RA 10173).">
-          <label className="flex items-start gap-3 rounded-md border border-border bg-paper p-3 text-sm">
-            <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptTerms")} />
-            <span className="text-muted-foreground">
-              I have read and agree to the <a href="/transparency" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">SAGIP Terms and Conditions</a>, including acceptable-use policies and the audit logging of all donations and assistance requests.
-            </span>
-          </label>
-          {errors.acceptTerms && <p className="text-xs text-destructive">{errors.acceptTerms.message as string}</p>}
-          <label className="flex items-start gap-3 rounded-md border border-border bg-paper p-3 text-sm">
-            <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptPrivacy")} />
-            <span className="text-muted-foreground">
-              <strong className="text-ink">Data Privacy Consent (RA 10173):</strong> I freely consent to SAGIP and the City DRRM Office collecting, processing, storing, and sharing my personal data and uploaded government ID strictly for identity verification, disaster relief operations, donor acknowledgment, and audit purposes, in accordance with the <a href="/about" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">SAGIP Privacy Notice</a>. I understand my rights to access, correct, and request deletion of my data under the Data Privacy Act of 2012.
-            </span>
-          </label>
-          {errors.acceptPrivacy && <p className="text-xs text-destructive">{errors.acceptPrivacy.message as string}</p>}
-        </Fieldset>
+        {step === 2 && (
+          <Fieldset title="Password" description="Minimum 8 characters with uppercase, lowercase, number, and special character.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Password" error={errors.password?.message}><Input type="password" {...register("password")} /></Field>
+              <Field label="Confirm password" error={errors.confirm?.message}><Input type="password" {...register("confirm")} /></Field>
+            </div>
+            <PasswordChecklist password={pw} />
+          </Fieldset>
+        )}
 
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-6">
-          <Button type="submit" size="lg" disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create account
+        {step === 3 && (
+          <Fieldset title="Consent & agreements" description="Required under the Philippine Data Privacy Act of 2012 (RA 10173).">
+            <label className="flex items-start gap-3 rounded-md border border-border bg-paper p-3 text-sm">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptTerms")} />
+              <span className="text-muted-foreground">
+                I have read and agree to the{" "}
+                <TermsDialog
+                  trigger={
+                    <button type="button" className="font-medium text-primary hover:underline">
+                      SAGIP Terms and Conditions
+                    </button>
+                  }
+                />
+                , including acceptable-use policies and the audit logging of all donations and assistance requests.
+              </span>
+            </label>
+            {errors.acceptTerms && <p className="text-xs text-destructive">{errors.acceptTerms.message as string}</p>}
+            <label className="flex items-start gap-3 rounded-md border border-border bg-paper p-3 text-sm">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptPrivacy")} />
+              <span className="text-muted-foreground">
+                <strong className="text-ink">Data Privacy Consent (RA 10173):</strong> I freely consent to SAGIP and the City DRRM Office collecting, processing, storing, and sharing my personal data and uploaded government ID strictly for identity verification, disaster relief operations, donor acknowledgment, and audit purposes, in accordance with the <a href="/about" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">SAGIP Privacy Notice</a>. I understand my rights to access, correct, and request deletion of my data under the Data Privacy Act of 2012.
+              </span>
+            </label>
+            {errors.acceptPrivacy && <p className="text-xs text-destructive">{errors.acceptPrivacy.message as string}</p>}
+          </Fieldset>
+        )}
+
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-6">
+          <Button type="button" variant="outline" onClick={back} disabled={step === 0 || loading}>
+            <ArrowLeft className="h-4 w-4" /> Back
           </Button>
+          {isLast ? (
+            <Button type="submit" size="lg" disabled={loading}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create account
+            </Button>
+          ) : (
+            <Button type="button" onClick={next}>
+              Next <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <p className="text-center text-sm text-muted-foreground">Already have an account? <Link to="/auth" className="font-medium text-primary hover:underline">Sign in</Link></p>
       </form>
     </div>
+  );
+}
+
+function Stepper({ step }: { step: number }) {
+  return (
+    <ol className="mt-6 grid grid-cols-4 gap-2">
+      {STEPS.map((s, i) => {
+        const done = i < step;
+        const active = i === step;
+        return (
+          <li key={s.key} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : done ? "bg-relief text-white" : "bg-muted text-muted-foreground"}`}>
+                {done ? <Check className="h-4 w-4" /> : i + 1}
+              </span>
+              <span className={`hidden text-xs font-medium sm:inline ${active ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+            </div>
+            <div className={`h-1 rounded-full ${i <= step ? "bg-primary" : "bg-muted"}`} />
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
