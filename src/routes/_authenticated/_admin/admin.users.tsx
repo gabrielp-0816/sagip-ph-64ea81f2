@@ -13,8 +13,10 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { generateAdminInviteCode, listAdminInviteCodes } from "@/lib/auth/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { useIsSuperAdmin } from "@/lib/auth/use-role";
 
-const ROLES = ["admin", "official", "ngo", "citizen"] as const;
+const ROLES = ["super_admin", "admin", "official", "ngo", "citizen"] as const;
+const SUPER_ONLY_ROLES = new Set(["admin", "super_admin"]);
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/users")({
   head: () => ({ meta: [{ title: "Users & roles — SAGIP Admin" }] }),
@@ -23,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/_admin/admin/users")({
 
 function Users() {
   const qc = useQueryClient();
+  const { isSuperAdmin } = useIsSuperAdmin();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<any | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
@@ -195,13 +198,14 @@ function Users() {
         </table>
       </div>
 
+      {isSuperAdmin && (
       <div className="mt-10 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="rounded-lg bg-primary/10 p-2 text-primary"><KeyRound className="h-4 w-4" /></span>
             <div>
               <h2 className="font-display text-lg font-semibold">Administrator invite codes</h2>
-              <p className="text-xs text-muted-foreground">Generate single-use codes for new admin registrations. All code usage is logged.</p>
+              <p className="text-xs text-muted-foreground">Super-admin only. Generate single-use codes for new admin registrations. All code usage is logged.</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowCodes((s) => !s)}>{showCodes ? "Hide codes" : "Show codes"}</Button>
@@ -257,30 +261,35 @@ function Users() {
           </div>
         )}
       </div>
+      )}
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Manage roles — {editing?.first_name} {editing?.last_name}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            {ROLES.map((r) => (
-              <label key={r} className="flex items-center gap-3 rounded-md border border-border p-3">
-                <Checkbox checked={selectedRoles.has(r)} onCheckedChange={(v) => {
+            {ROLES.map((r) => {
+              const locked = SUPER_ONLY_ROLES.has(r) && !isSuperAdmin;
+              return (
+              <label key={r} className={`flex items-center gap-3 rounded-md border border-border p-3 ${locked ? "opacity-60" : ""}`}>
+                <Checkbox disabled={locked} checked={selectedRoles.has(r)} onCheckedChange={(v) => {
                   const next = new Set(selectedRoles);
                   if (v) next.add(r); else next.delete(r);
                   setSelectedRoles(next);
                 }} />
                 <div>
-                  <p className="text-sm font-medium capitalize">{r}</p>
+                  <p className="text-sm font-medium capitalize flex items-center gap-2">{r.replace("_", " ")}{locked && <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">Super admin only</span>}</p>
                   <p className="text-xs text-muted-foreground">
-                    {r === "admin" && "Full access to all admin functions and audit logs."}
+                    {r === "super_admin" && "Highest privilege. Can manage admins, generate invite codes, and view the audit log."}
+                    {r === "admin" && "Full access to admin operations (campaigns, requests, fund releases). Cannot manage other admins."}
                     {r === "official" && "City official with elevated visibility (future)."}
                     {r === "ngo" && "Partner NGO coordinator (future)."}
                     {r === "citizen" && "Default role for residents."}
                   </p>
                 </div>
               </label>
-            ))}
-            <p className="rounded-md bg-warning/10 p-3 text-xs text-warning-foreground">⚠ Granting admin gives full system control including releasing funds. Use sparingly.</p>
+              );
+            })}
+            <p className="rounded-md bg-warning/10 p-3 text-xs text-warning-foreground">⚠ Admin and super-admin grants give full system control. Only super admins can assign them.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>

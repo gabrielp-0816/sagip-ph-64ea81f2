@@ -608,7 +608,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "official" | "ngo" | "citizen"
+      app_role: "admin" | "official" | "ngo" | "citizen" | "super_admin"
       disaster_severity: "low" | "moderate" | "high" | "critical"
       disaster_status: "active" | "monitoring" | "closed"
       gender_type: "male" | "female" | "other" | "prefer_not_to_say"
@@ -753,7 +753,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "official", "ngo", "citizen"],
+      app_role: ["admin", "official", "ngo", "citizen", "super_admin"],
       disaster_severity: ["low", "moderate", "high", "critical"],
       disaster_status: ["active", "monitoring", "closed"],
       gender_type: ["male", "female", "other", "prefer_not_to_say"],

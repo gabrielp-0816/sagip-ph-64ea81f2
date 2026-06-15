@@ -10,10 +10,10 @@ export const Route = createFileRoute("/_authenticated/_admin")({
       .from("user_roles")
       .select("role")
       .eq("user_id", u.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (error || !data) throw redirect({ to: "/dashboard" });
-    return { isAdmin: true };
+      .in("role", ["admin", "super_admin"]);
+    if (error || !data || data.length === 0) throw redirect({ to: "/dashboard" });
+    const isSuperAdmin = data.some((r) => r.role === "super_admin");
+    return { isAdmin: true, isSuperAdmin };
   },
   component: () => <Outlet />,
 });

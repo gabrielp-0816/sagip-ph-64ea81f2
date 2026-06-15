@@ -20,8 +20,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useIsSuperAdmin } from "@/lib/auth/use-role";
 
-type NavItem = { to: string; label: string; icon: any; exact?: boolean };
+type NavItem = { to: string; label: string; icon: any; exact?: boolean; superOnly?: boolean };
 const nav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/admin/disasters", label: "Disaster campaigns", icon: Siren },
@@ -30,7 +31,7 @@ const nav: NavItem[] = [
   { to: "/admin/donations", label: "Donations", icon: HandHeart },
   { to: "/admin/transactions", label: "Transaction history", icon: ArrowLeftRight },
   { to: "/admin/users", label: "Users & roles", icon: Users },
-  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+  { to: "/admin/audit", label: "Audit log", icon: ScrollText, superOnly: true },
   { to: "/profile", label: "My profile", icon: User },
 ];
 
@@ -39,6 +40,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const { isSuperAdmin } = useIsSuperAdmin();
 
   const meta = useQuery({
     queryKey: ["admin-shell-meta"],
@@ -84,7 +86,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
             </button>
             <Link to="/admin" className="flex items-center gap-3">
               <SagipLogo variant="light" />
-              <span className="hidden rounded-full border border-gold/40 bg-gold/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold sm:inline">Admin Console</span>
+              <span className={cn("hidden rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] sm:inline", isSuperAdmin ? "border-relief/50 bg-relief/15 text-relief" : "border-gold/40 bg-gold/10 text-gold")}>{isSuperAdmin ? "Super Admin" : "Admin Console"}</span>
             </Link>
           </div>
           <div className="flex items-center gap-2">
@@ -108,7 +110,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
           )}
         >
           <nav className="space-y-0.5">
-            {nav.map((n) => {
+            {nav.filter((n) => !n.superOnly || isSuperAdmin).map((n) => {
               const Icon = n.icon;
               const active = n.exact ? pathname === n.to : pathname === n.to || pathname.startsWith(n.to + "/");
               return (
