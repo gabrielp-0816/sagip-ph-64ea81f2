@@ -13,8 +13,10 @@ import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { generateAdminInviteCode, listAdminInviteCodes } from "@/lib/auth/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { useIsSuperAdmin } from "@/lib/auth/use-role";
 
-const ROLES = ["admin", "official", "ngo", "citizen"] as const;
+const ROLES = ["super_admin", "admin", "official", "ngo", "citizen"] as const;
+const SUPER_ONLY_ROLES = new Set(["admin", "super_admin"]);
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/users")({
   head: () => ({ meta: [{ title: "Users & roles — SAGIP Admin" }] }),
