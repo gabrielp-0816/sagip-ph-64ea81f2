@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/sagip/AdminShell";
 import { formatPHP, timeAgo } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { HandHeart, Wallet, AlertTriangle, ArrowRight, Siren, ShieldCheck } from "lucide-react";
+import { HandHeart, Wallet, AlertTriangle, ArrowRight, Siren } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/")({
   head: () => ({ meta: [{ title: "Admin overview — SAGIP" }] }),
@@ -17,13 +17,17 @@ function AdminOverview() {
   const q = useQuery({
     queryKey: ["admin-overview"],
     queryFn: async () => {
-      const [donations, allocs, requests, disasters, recentReqs, profile] = await Promise.all([
+      const [donations, allocs, requests, disasters, recentReqs, recentDonations] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_allocations").select("allocated_amount,released_amount"),
         supabase.from("fund_requests").select("id,status"),
         supabase.from("disasters").select("id,status"),
         supabase.from("fund_requests").select("id,disaster_description,requested_amount,status,created_at").order("created_at", { ascending: false }).limit(5),
-        supabase.from("profiles").select("first_name,middle_name,last_name,email,mobile_number,city,province,id_type").maybeSingle(),
+        supabase
+          .from("donations")
+          .select("id,amount,created_at,donor_name,donor_email,is_anonymous,disaster_id,disasters(name)")
+          .order("created_at", { ascending: false })
+          .limit(5),
       ]);
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocs.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
@@ -34,7 +38,7 @@ function AdminOverview() {
         totalD, totalR, pending, activeDisasters,
         available: Math.max(0, totalA - totalR),
         recentReqs: recentReqs.data ?? [],
-        profile: profile.data,
+        recentDonations: recentDonations.data ?? [],
       };
     },
   });
@@ -51,11 +55,9 @@ function AdminOverview() {
   }, [qc]);
 
   const d = q.data;
-  const p = d?.profile;
-  const fullName = p ? [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(" ") : "Administrator";
 
   return (
-    <AdminShell title="Operations overview" subtitle="A focused snapshot of fund operations and your administrator profile.">
+    <AdminShell title="Operations overview" subtitle="A focused snapshot of fund operations and recent citizen donations.">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Donations received" value={formatPHP(d?.totalD ?? 0)} accent="relief" icon={HandHeart} />
         <Kpi label="Funds released" value={formatPHP(d?.totalR ?? 0)} accent="gold" icon={Wallet} />
@@ -63,7 +65,7 @@ function AdminOverview() {
         <Kpi label="Requests pending" value={String(d?.pending ?? 0)} accent="warning" icon={AlertTriangle} />
       </div>
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
         <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
@@ -83,33 +85,33 @@ function AdminOverview() {
           </ul>
         </section>
 
-        <section className="min-w-0 rounded-xl border border-border bg-card">
-          <div className="flex items-center gap-2 border-b border-border p-5">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            <h2 className="font-display text-base font-semibold">Administrator profile</h2>
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <div className="flex items-center gap-2">
+              <HandHeart className="h-4 w-4 text-relief" />
+              <h2 className="font-display text-base font-semibold">Recent citizen donations</h2>
+            </div>
+            <Button variant="ghost" size="sm" asChild><Link to="/admin/donations">View all <ArrowRight className="h-3 w-3" /></Link></Button>
           </div>
-          <dl className="grid grid-cols-1 gap-3 p-5 text-sm">
-            <Info label="Full name" value={fullName} />
-            <Info label="Email" value={p?.email ?? "—"} />
-            <Info label="Mobile" value={p?.mobile_number ?? "—"} />
-            <Info label="City / Province" value={p ? [p.city, p.province].filter(Boolean).join(", ") || "—" : "—"} />
-            <Info label="ID on file" value={p?.id_type ? p.id_type.replace(/_/g, " ").toUpperCase() : "—"} />
-          </dl>
-          <div className="border-t border-border p-4">
-            <Button variant="outline" size="sm" asChild className="w-full"><Link to="/profile">Edit personal information</Link></Button>
-          </div>
+          <ul className="divide-y divide-border">
+            {(d?.recentDonations ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No donations yet.</li>}
+            {(d?.recentDonations ?? []).map((don: any) => {
+              const campaign = don.disasters?.name ?? "General fund";
+              const donor = don.is_anonymous ? "Anonymous" : don.donor_name;
+              return (
+                <li key={don.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{donor}</p>
+                    <p className="truncate text-xs text-muted-foreground">{campaign} · {timeAgo(don.created_at)}</p>
+                  </div>
+                  <span className="shrink-0 text-right font-semibold tabular-nums text-relief">{formatPHP(don.amount)}</span>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       </div>
     </AdminShell>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-border pb-2 last:border-none last:pb-0">
-      <dt className="text-xs uppercase tracking-wider text-muted-foreground">{label}</dt>
-      <dd className="text-right text-sm font-medium text-ink">{value}</dd>
-    </div>
   );
 }
 
