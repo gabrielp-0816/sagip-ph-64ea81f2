@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-type DialogKind = null | "disasters" | "donations" | "requests";
+type DialogKind = null | "disasters" | "inactive-disasters" | "donations" | "requests";
 
 function Dashboard() {
   const queryClient = useQueryClient();
