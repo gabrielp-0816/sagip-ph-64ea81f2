@@ -17,6 +17,7 @@ type DialogKind = null | "disasters" | "donations" | "requests";
 
 function Dashboard() {
   const queryClient = useQueryClient();
+  const [openDialog, setOpenDialog] = useState<DialogKind>(null);
 
   const { data: user } = useQuery({
     queryKey: ["auth-user"],
