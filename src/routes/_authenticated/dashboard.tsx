@@ -220,6 +220,145 @@ function Dashboard() {
   );
 }
 
+function ActiveCampaignsSection({
+  disasters,
+  releasedByDisaster,
+  onViewAll,
+}: {
+  disasters: any[];
+  releasedByDisaster: Record<string, number>;
+  onViewAll: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [severity, setSeverity] = useState<string>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [sort, setSort] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc" | "funded_desc">("date_desc");
+
+  const severityOptions = useMemo(
+    () => Array.from(new Set(disasters.map((d) => d.severity).filter(Boolean))) as string[],
+    [disasters],
+  );
+
+  const filtered = useMemo(() => {
+    return disasters
+      .filter((d) => severity === "all" || d.severity === severity)
+      .filter((d) => !name.trim() || d.name?.toLowerCase().includes(name.trim().toLowerCase()))
+      .filter((d) => {
+        const ref = d.occurred_at ?? d.created_at;
+        if (!ref) return true;
+        const t = new Date(ref).getTime();
+        if (from && t < new Date(from).getTime()) return false;
+        if (to && t > new Date(to).getTime() + 86_400_000 - 1) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sort === "name_asc") return a.name.localeCompare(b.name);
+        if (sort === "name_desc") return b.name.localeCompare(a.name);
+        if (sort === "funded_desc") {
+          const pa = a.required_funding > 0 ? Number(a.raised_amount) / Number(a.required_funding) : 0;
+          const pb = b.required_funding > 0 ? Number(b.raised_amount) / Number(b.required_funding) : 0;
+          return pb - pa;
+        }
+        const av = new Date(a.occurred_at ?? a.created_at).getTime();
+        const bv = new Date(b.occurred_at ?? b.created_at).getTime();
+        return sort === "date_asc" ? av - bv : bv - av;
+      });
+  }, [disasters, severity, name, from, to, sort]);
+
+  const reset = () => { setName(""); setSeverity("all"); setFrom(""); setTo(""); setSort("date_desc"); };
+  const visible = filtered.slice(0, 5);
+
+  return (
+    <section className="mt-8 rounded-xl border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border p-5">
+        <h2 className="font-display text-lg font-semibold">Active disaster campaigns</h2>
+        <Button variant="ghost" size="sm" onClick={onViewAll}>
+          View all <ArrowRight className="h-3 w-3" />
+        </Button>
+      </div>
+      <div className="border-b border-border bg-muted/30 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Campaign name" value={name} onChange={(e) => setName(e.target.value)} className="h-9 pl-8" />
+          </div>
+          <Select value={severity} onValueChange={setSeverity}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Severity" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All severities</SelectItem>
+              {severityOptions.map((s) => (
+                <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" aria-label="From date" />
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" aria-label="To date" />
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+            <SelectTrigger className="h-8 w-auto min-w-[180px] text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Newest first</SelectItem>
+              <SelectItem value="date_asc">Oldest first</SelectItem>
+              <SelectItem value="name_asc">Name (A–Z)</SelectItem>
+              <SelectItem value="name_desc">Name (Z–A)</SelectItem>
+              <SelectItem value="funded_desc">Most funded</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">{Math.min(visible.length, filtered.length)} of {filtered.length}</span>
+            <Button variant="ghost" size="sm" className="h-8" onClick={reset}>Reset</Button>
+          </div>
+        </div>
+      </div>
+      <ul className="divide-y divide-border">
+        {disasters.length === 0 && (
+          <li className="p-10 text-center text-sm text-muted-foreground">No active disaster campaigns at this time.</li>
+        )}
+        {disasters.length > 0 && filtered.length === 0 && (
+          <li className="p-10 text-center text-sm text-muted-foreground">No campaigns match these filters.</li>
+        )}
+        {visible.map((d: any) => {
+          const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+          const released = releasedByDisaster[d.id] ?? 0;
+          return (
+            <li key={d.id} className="grid gap-3 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
+                <p className="mt-0.5 font-display text-lg font-semibold">{d.name}</p>
+                <p className="text-sm text-muted-foreground">{d.city} · {d.affected_families.toLocaleString()} families affected</p>
+                <div className="mt-3 max-w-md">
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-muted-foreground">Funding</span>
+                    <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full bg-relief" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Wallet className="h-3 w-3 text-gold" />
+                    <span>Released to citizens: <span className="font-semibold tabular-nums text-foreground">{formatPHP(released)}</span></span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+                <Button variant="relief" size="sm" asChild>
+                  <Link to="/donate" search={{ disaster: d.id } as any}><HandHeart className="h-4 w-4" /> Donate</Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/request" search={{ disaster: d.id } as any}>Request aid</Link>
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+
 function DisastersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const q = useQuery({
     queryKey: ["dialog-all-disasters"],
