@@ -188,7 +188,164 @@ function Dashboard() {
           </ul>
         </section>
       </div>
+
+      <DisastersDialog open={openDialog === "disasters"} onOpenChange={(o) => !o && setOpenDialog(null)} />
+      <DonationsDialog open={openDialog === "donations"} onOpenChange={(o) => !o && setOpenDialog(null)} uid={uid} />
+      <RequestsDialog open={openDialog === "requests"} onOpenChange={(o) => !o && setOpenDialog(null)} uid={uid} />
     </DashShell>
+  );
+}
+
+function DisastersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const q = useQuery({
+    queryKey: ["dialog-all-disasters"],
+    enabled: open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("disasters")
+        .select("id,name,city,severity,status,affected_families,required_funding,raised_amount,occurred_at,disaster_categories(name)")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
+        <DialogHeader className="border-b border-border p-5">
+          <DialogTitle>Active disaster campaigns</DialogTitle>
+          <DialogDescription>All disaster campaigns currently under response.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[65vh] overflow-y-auto">
+          {q.isLoading && <p className="p-10 text-center text-sm text-muted-foreground">Loading…</p>}
+          {!q.isLoading && (q.data ?? []).length === 0 && (
+            <p className="p-10 text-center text-sm text-muted-foreground">No active campaigns.</p>
+          )}
+          <ul className="divide-y divide-border">
+            {(q.data ?? []).map((d: any) => {
+              const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+              return (
+                <li key={d.id} className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
+                      <p className="mt-0.5 font-display text-base font-semibold">{d.name}</p>
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.city} · {d.affected_families.toLocaleString()} families</p>
+                    </div>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.severity}</span>
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="text-muted-foreground">Funding</span>
+                      <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full bg-relief" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DonationsDialog({ open, onOpenChange, uid }: { open: boolean; onOpenChange: (o: boolean) => void; uid: string }) {
+  const q = useQuery({
+    queryKey: ["dialog-my-donations", uid],
+    enabled: open && !!uid,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("donations")
+        .select("id,amount,created_at,payment_method,reference_number,disasters(name)")
+        .eq("donor_id", uid)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
+        <DialogHeader className="border-b border-border p-5">
+          <DialogTitle>Your recent donations</DialogTitle>
+          <DialogDescription>Complete history of every donation you've made.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[65vh] overflow-y-auto">
+          {q.isLoading && <p className="p-10 text-center text-sm text-muted-foreground">Loading…</p>}
+          {!q.isLoading && (q.data ?? []).length === 0 && (
+            <p className="p-10 text-center text-sm text-muted-foreground">No donations yet.</p>
+          )}
+          <ul className="divide-y divide-border">
+            {(q.data ?? []).map((d: any) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium">{d.disasters?.name ?? "General fund"}</p>
+                  <p className="text-xs capitalize text-muted-foreground">
+                    {formatDate(d.created_at)} · {(d.payment_method ?? "").replace(/_/g, " ")}
+                    {d.reference_number ? ` · #${d.reference_number}` : ""}
+                  </p>
+                </div>
+                <p className="font-display font-semibold tabular-nums text-relief">{formatPHP(d.amount)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RequestsDialog({ open, onOpenChange, uid }: { open: boolean; onOpenChange: (o: boolean) => void; uid: string }) {
+  const q = useQuery({
+    queryKey: ["dialog-my-requests", uid],
+    enabled: open && !!uid,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fund_requests")
+        .select("id,requester_id,disaster_description,status,requested_amount,affected_individuals,city,barangay,created_at,disasters(name),disaster_categories(name)")
+        .eq("requester_id", uid)
+        .order("created_at", { ascending: false });
+      return (data ?? []).filter((r: any) => r.requester_id === uid);
+    },
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
+        <DialogHeader className="border-b border-border p-5">
+          <DialogTitle>Your assistance requests</DialogTitle>
+          <DialogDescription>All relief requests you've submitted and their status.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[65vh] overflow-y-auto">
+          {q.isLoading && <p className="p-10 text-center text-sm text-muted-foreground">Loading…</p>}
+          {!q.isLoading && (q.data ?? []).length === 0 && (
+            <p className="p-10 text-center text-sm text-muted-foreground">
+              No requests yet. <Link to="/request" className="font-medium text-primary hover:underline">Submit your first request</Link>.
+            </p>
+          )}
+          <ul className="divide-y divide-border">
+            {(q.data ?? []).map((r: any) => (
+              <li key={r.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground">{r.disaster_categories?.name} · {formatDate(r.created_at)}</p>
+                    <p className="mt-0.5 font-medium">{r.disasters?.name ?? "Standalone request"}</p>
+                    <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{r.disaster_description}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{r.barangay}, {r.city} · {r.affected_individuals?.toLocaleString?.() ?? 0} individuals</p>
+                  </div>
+                  <div className="text-right">
+                    <StatusBadge status={r.status} />
+                    <p className="mt-1 font-display text-sm font-semibold tabular-nums">{formatPHP(r.requested_amount)}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
