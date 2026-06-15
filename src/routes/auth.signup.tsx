@@ -60,6 +60,8 @@ const schema = z.object({
   idNumber: z.string().min(3).max(50),
   password: passwordRules,
   confirm: z.string(),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms and Conditions" }) }),
+  acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "Consent to data processing is required under RA 10173" }) }),
 }).refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
 type FormVals = z.infer<typeof schema>;
