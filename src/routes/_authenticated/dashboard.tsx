@@ -45,35 +45,45 @@ function Dashboard() {
           uid: "",
         };
       }
-      const [donations, requests, allocations, disasters, myDonations, myRequests] = await Promise.all([
+      const [donations, requests, allocations, disasters, inactiveDisasters, myDonations, myRequests] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_requests").select("id,status"),
         supabase.from("fund_allocations").select("allocated_amount,released_amount"),
         supabase
           .from("disasters")
-          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,disaster_categories(name)")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,disaster_categories(name)")
           .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("disasters")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,disaster_categories(name)")
+          .neq("status", "active")
           .order("created_at", { ascending: false })
           .limit(20),
         supabase.from("donations").select("id,amount,created_at,disasters(name)").eq("donor_id", uid).order("created_at", { ascending: false }).limit(5),
         supabase.from("fund_requests").select("id,requester_id,disaster_description,status,requested_amount,created_at").eq("requester_id", uid).order("created_at", { ascending: false }).limit(5),
       ]);
+
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocations.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
       const totalR = (allocations.data ?? []).reduce((s, a) => s + Number(a.released_amount), 0);
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
       // Exclude campaigns the current user created — they shouldn't donate to their own.
       const visibleDisasters = (disasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
+      const visibleInactive = (inactiveDisasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
       return {
         totalDonations: totalD,
         availableFunds: Math.max(0, totalA - totalR),
         fundsReleased: totalR,
         fundsPending: pending,
         disasters: visibleDisasters,
+        inactiveDisasters: visibleInactive,
         myDonations: myDonations.data ?? [],
         myRequests: (myRequests.data ?? []).filter((r: any) => r.requester_id === uid),
         uid,
       };
+
     },
     enabled: !!uid,
   });
@@ -143,7 +153,46 @@ function Dashboard() {
         </ul>
       </section>
 
+      <section className="mt-8 rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border p-5">
+          <h2 className="font-display text-lg font-semibold">Inactive disaster campaigns</h2>
+          <Button variant="ghost" size="sm" onClick={() => setOpenDialog("inactive-disasters")}>
+            View all <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
+        <ul className="divide-y divide-border">
+          {(s?.inactiveDisasters ?? []).length === 0 && (
+            <li className="p-10 text-center text-sm text-muted-foreground">No inactive disaster campaigns at this time.</li>
+          )}
+          {(s?.inactiveDisasters ?? []).map((d: any) => {
+            const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+            return (
+              <li key={d.id} className="grid gap-3 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
+                  <p className="mt-0.5 font-display text-lg font-semibold">{d.name}</p>
+                  <p className="text-sm text-muted-foreground">{d.city} · {d.affected_families.toLocaleString()} families affected</p>
+                  <div className="mt-3 max-w-md">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="text-muted-foreground">Final funding</span>
+                      <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full bg-muted-foreground" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+                  <span className="inline-flex items-center justify-center rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.status}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
+
         <section className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Your recent donations</h2>
@@ -190,8 +239,10 @@ function Dashboard() {
       </div>
 
       <DisastersDialog open={openDialog === "disasters"} onOpenChange={(o) => !o && setOpenDialog(null)} />
+      <InactiveDisastersDialog open={openDialog === "inactive-disasters"} onOpenChange={(o) => !o && setOpenDialog(null)} />
       <DonationsDialog open={openDialog === "donations"} onOpenChange={(o) => !o && setOpenDialog(null)} uid={uid} />
       <RequestsDialog open={openDialog === "requests"} onOpenChange={(o) => !o && setOpenDialog(null)} uid={uid} />
+
     </DashShell>
   );
 }
