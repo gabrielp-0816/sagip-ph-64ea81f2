@@ -50,13 +50,13 @@ function Dashboard() {
       const [donations, requests, allocations, disasters, inactiveDisasters, myDonations, myRequests] = await Promise.all([
         supabase.from("donations").select("amount"),
         supabase.from("fund_requests").select("id,status"),
-        supabase.from("fund_allocations").select("allocated_amount,released_amount"),
+        supabase.from("fund_allocations").select("disaster_id,allocated_amount,released_amount"),
         supabase
           .from("disasters")
-          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,disaster_categories(name)")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,occurred_at,created_at,disaster_categories(name)")
           .eq("status", "active")
           .order("created_at", { ascending: false })
-          .limit(20),
+          .limit(100),
         supabase
           .from("disasters")
           .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,disaster_categories(name)")
@@ -70,9 +70,14 @@ function Dashboard() {
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocations.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
       const totalR = (allocations.data ?? []).reduce((s, a) => s + Number(a.released_amount), 0);
+      const releasedByDisaster: Record<string, number> = {};
+      for (const a of allocations.data ?? []) {
+        if (!a.disaster_id) continue;
+        releasedByDisaster[a.disaster_id] = (releasedByDisaster[a.disaster_id] ?? 0) + Number(a.released_amount);
+      }
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
       // Exclude campaigns the current user created — they shouldn't donate to their own.
-      const visibleDisasters = (disasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
+      const visibleDisasters = (disasters.data ?? []).filter((d: any) => d.created_by !== uid);
       const visibleInactive = (inactiveDisasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
       return {
         totalDonations: totalD,
@@ -81,6 +86,7 @@ function Dashboard() {
         fundsPending: pending,
         disasters: visibleDisasters,
         inactiveDisasters: visibleInactive,
+        releasedByDisaster,
         myDonations: myDonations.data ?? [],
         myRequests: (myRequests.data ?? []).filter((r: any) => r.requester_id === uid),
         uid,
@@ -96,6 +102,7 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "donations" }, () => queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "disasters" }, () => queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "fund_allocations" }, () => queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "fund_releases" }, () => queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "fund_requests" }, () => queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] }))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
