@@ -146,13 +146,13 @@ export const generateAdminInviteCode = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    // Verify caller is admin
-    const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
+    // Verify caller is super_admin
+    const { data: isSuperAdmin, error: roleErr } = await supabase.rpc("has_role", {
       _user_id: context.userId,
-      _role: "admin" as any,
+      _role: "super_admin" as any,
     });
     if (roleErr) throw new Error(roleErr.message);
-    if (!isAdmin) throw new Error("Only administrators can generate invite codes");
+    if (!isSuperAdmin) throw new Error("Only super administrators can generate invite codes");
 
     // Create code
     const code = makeCode();
