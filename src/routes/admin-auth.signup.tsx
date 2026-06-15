@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/sagip/PasswordInput";
+import { TermsDialog } from "@/components/sagip/TermsDialog";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { METRO_MANILA_CITIES, isValidEmail } from "@/lib/locations";
 import { toast } from "sonner";
-import { Loader2, KeyRound, Upload, CheckCircle2 } from "lucide-react";
+import { Loader2, KeyRound, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check } from "lucide-react";
 
 const passwordRules = z
   .string()
@@ -63,6 +64,8 @@ const schema = z
     idNumber: z.string().trim().min(3, "Required").max(50),
     password: passwordRules,
     confirm: z.string(),
+    acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms and Conditions" }) }),
+    acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "Consent to data processing is required under RA 10173" }) }),
   })
   .refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
@@ -94,22 +97,50 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+const STEPS = [
+  { key: "personal", label: "Personal Information" },
+  { key: "identity", label: "Identity Verification" },
+  { key: "password", label: "Password" },
+  { key: "consent", label: "Consent & Agreements" },
+] as const;
+
+const STEP_FIELDS: Record<number, (keyof FormVals)[]> = {
+  0: ["firstName", "middleName", "lastName", "birthDate", "gender", "mobile", "email", "address", "city", "province"],
+  1: ["inviteCode", "idType", "idNumber"],
+  2: ["password", "confirm"],
+  3: ["acceptTerms", "acceptPrivacy"],
+};
+
 function AdminSignup() {
   const navigate = useNavigate();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [idFile, setIdFile] = useState<File | null>(null);
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormVals>({
+  const [step, setStep] = useState(0);
+  const { register, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { province: "Metro Manila" },
+    defaultValues: { province: "Metro Manila", acceptTerms: false as any, acceptPrivacy: false as any },
   });
 
   const idType = watch("idType");
   const city = watch("city");
   const gender = watch("gender");
 
+  const next = async () => {
+    const fields = STEP_FIELDS[step];
+    const ok = await trigger(fields as any);
+    if (!ok) return;
+    if (step === 1) {
+      if (!idFile) { toast.error("Please upload a government-issued ID"); return; }
+      if (!ALLOWED_MIME.includes(idFile.type)) { toast.error("ID must be JPG, PNG, WEBP, or PDF"); return; }
+      if (idFile.size > MAX_BYTES) { toast.error("ID must be 5MB or smaller"); return; }
+    }
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const back = () => setStep((s) => Math.max(s - 1, 0));
+
   const onSubmit = async (vals: FormVals) => {
-    if (!idFile) { toast.error("Please upload a government-issued ID"); return; }
+    if (!idFile) { toast.error("Please upload a government-issued ID"); setStep(1); return; }
     if (!ALLOWED_MIME.includes(idFile.type)) { toast.error("ID must be JPG, PNG, WEBP, or PDF"); return; }
     if (idFile.size > MAX_BYTES) { toast.error("ID must be 5MB or smaller"); return; }
 
@@ -154,6 +185,8 @@ function AdminSignup() {
     }
   };
 
+  const isLast = step === STEPS.length - 1;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 lg:px-8">
       <div className="rounded-2xl bg-paper p-8 text-foreground shadow-2xl sm:p-10">
@@ -165,109 +198,154 @@ function AdminSignup() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-          <Section title="Personal information">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="First name" error={errors.firstName?.message}><Input {...register("firstName")} /></Field>
-              <Field label="Middle name" optional><Input {...register("middleName")} /></Field>
-              <Field label="Last name" error={errors.lastName?.message}><Input {...register("lastName")} /></Field>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Birth date" error={errors.birthDate?.message}>
-                <Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} />
-              </Field>
-              <Field label="Gender" error={errors.gender?.message}>
-                <Select value={gender ?? ""} onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Mobile number" error={errors.mobile?.message}>
-                <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
-              </Field>
-            </div>
-            <Field label="Email address" error={errors.email?.message}>
-              <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
-            </Field>
-            <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="City" error={errors.city?.message}>
-                <Select value={city ?? ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
-                  <SelectContent>
-                    {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Province" error={errors.province?.message}>
-                <Input {...register("province")} defaultValue="Metro Manila" />
-              </Field>
-            </div>
-          </Section>
+        <Stepper step={step} />
 
-          <Section title="Invite code" description="A single-use code issued by an existing SAGIP administrator.">
-            <Field label="Invite code" error={errors.inviteCode?.message}>
-              <Input placeholder="SAGIP-ADMIN-XXXX" {...register("inviteCode")} className="font-mono uppercase" />
-            </Field>
-          </Section>
-
-          <Section title="Identity verification" description="Documents are stored securely and reviewed by the SAGIP DRRM Office.">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="ID type" error={errors.idType?.message}>
-                <Select value={idType ?? ""} onValueChange={(v) => setValue("idType", v as FormVals["idType"], { shouldValidate: true })}>
-                  <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(ID_TYPE_LABELS) as Array<keyof typeof ID_TYPE_LABELS>).map((k) => (
-                      <SelectItem key={k} value={k}>{ID_TYPE_LABELS[k]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
+          {step === 0 && (
+            <Section title="Personal information">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="First name" error={errors.firstName?.message}><Input {...register("firstName")} /></Field>
+                <Field label="Middle name" optional><Input {...register("middleName")} /></Field>
+                <Field label="Last name" error={errors.lastName?.message}><Input {...register("lastName")} /></Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Birth date" error={errors.birthDate?.message}>
+                  <Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} />
+                </Field>
+                <Field label="Gender" error={errors.gender?.message}>
+                  <Select value={gender ?? ""} onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Mobile number" error={errors.mobile?.message}>
+                  <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
+                </Field>
+              </div>
+              <Field label="Email address" error={errors.email?.message}>
+                <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
               </Field>
-              <Field label="ID number" error={errors.idNumber?.message}>
-                <Input {...register("idNumber")} placeholder="As printed on the ID" />
-              </Field>
-            </div>
-            <Label className="text-sm">ID document (JPG, PNG, WEBP, or PDF — max 5MB)</Label>
-            <label htmlFor="admin-id-file" className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-background p-3 text-sm transition-colors hover:bg-accent">
-              {idFile ? (
-                <>
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-relief" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{idFile.name}</p>
-                    <p className="text-xs text-muted-foreground">{(idFile.size / 1024).toFixed(0)} KB · {idFile.type || "unknown"}</p>
-                  </div>
-                  <span className="text-xs font-medium text-primary">Change file</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="font-medium">Upload your government-issued ID</p>
-                    <p className="text-xs text-muted-foreground">Ensure all text is legible.</p>
-                  </div>
-                </>
-              )}
-            </label>
-            <input id="admin-id-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setIdFile(e.target.files?.[0] ?? null)} />
-          </Section>
+              <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="City" error={errors.city?.message}>
+                  <Select value={city ?? ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
+                    <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+                    <SelectContent>
+                      {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Province" error={errors.province?.message}>
+                  <Input {...register("province")} defaultValue="Metro Manila" />
+                </Field>
+              </div>
+            </Section>
+          )}
 
-          <Section title="Password">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Password" error={errors.password?.message}><PasswordInput {...register("password")} /></Field>
-              <Field label="Confirm password" error={errors.confirm?.message}><PasswordInput {...register("confirm")} /></Field>
-            </div>
-          </Section>
+          {step === 1 && (
+            <>
+              <Section title="Invite code" description="A single-use code issued by an existing SAGIP administrator.">
+                <Field label="Invite code" error={errors.inviteCode?.message}>
+                  <Input placeholder="SAGIP-ADMIN-XXXX" {...register("inviteCode")} className="font-mono uppercase" />
+                </Field>
+              </Section>
+
+              <Section title="Identity verification" description="Documents are stored securely and reviewed by the SAGIP DRRM Office.">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="ID type" error={errors.idType?.message}>
+                    <Select value={idType ?? ""} onValueChange={(v) => setValue("idType", v as FormVals["idType"], { shouldValidate: true })}>
+                      <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(ID_TYPE_LABELS) as Array<keyof typeof ID_TYPE_LABELS>).map((k) => (
+                          <SelectItem key={k} value={k}>{ID_TYPE_LABELS[k]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="ID number" error={errors.idNumber?.message}>
+                    <Input {...register("idNumber")} placeholder="As printed on the ID" />
+                  </Field>
+                </div>
+                <Label className="text-sm">ID document (JPG, PNG, WEBP, or PDF — max 5MB)</Label>
+                <label htmlFor="admin-id-file" className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-background p-3 text-sm transition-colors hover:bg-accent">
+                  {idFile ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-relief" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{idFile.name}</p>
+                        <p className="text-xs text-muted-foreground">{(idFile.size / 1024).toFixed(0)} KB · {idFile.type || "unknown"}</p>
+                      </div>
+                      <span className="text-xs font-medium text-primary">Change file</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="font-medium">Upload your government-issued ID</p>
+                        <p className="text-xs text-muted-foreground">Ensure all text is legible.</p>
+                      </div>
+                    </>
+                  )}
+                </label>
+                <input id="admin-id-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setIdFile(e.target.files?.[0] ?? null)} />
+              </Section>
+            </>
+          )}
+
+          {step === 2 && (
+            <Section title="Password" description="Minimum 8 characters with uppercase, lowercase, number, and special character.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Password" error={errors.password?.message}><PasswordInput {...register("password")} /></Field>
+                <Field label="Confirm password" error={errors.confirm?.message}><PasswordInput {...register("confirm")} /></Field>
+              </div>
+            </Section>
+          )}
+
+          {step === 3 && (
+            <Section title="Consent & agreements" description="Required under the Philippine Data Privacy Act of 2012 (RA 10173).">
+              <label className="flex items-start gap-3 rounded-md border border-border bg-background p-3 text-sm">
+                <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptTerms")} />
+                <span className="text-muted-foreground">
+                  I have read and agree to the{" "}
+                  <TermsDialog
+                    trigger={
+                      <button type="button" className="font-medium text-primary hover:underline">
+                        SAGIP Terms and Conditions
+                      </button>
+                    }
+                  />
+                  , the DRRM acceptable-use policy, and audit logging of all administrative actions.
+                </span>
+              </label>
+              {errors.acceptTerms && <p className="text-xs text-destructive">{errors.acceptTerms.message as string}</p>}
+              <label className="flex items-start gap-3 rounded-md border border-border bg-background p-3 text-sm">
+                <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" {...register("acceptPrivacy")} />
+                <span className="text-muted-foreground">
+                  <strong className="text-foreground">Data Privacy Consent (RA 10173):</strong> I consent to SAGIP and the City DRRM Office collecting, processing, storing, and sharing my personal data and uploaded government ID strictly for identity verification, administrative access control, and audit purposes, in accordance with the SAGIP Privacy Notice.
+                </span>
+              </label>
+              {errors.acceptPrivacy && <p className="text-xs text-destructive">{errors.acceptPrivacy.message as string}</p>}
+            </Section>
+          )}
 
           <div className="flex items-center justify-between gap-3 border-t border-border pt-6">
-            <p className="text-xs text-muted-foreground">By registering you agree to the SAGIP DRRM acceptable-use policy and audit logging.</p>
-            <Button type="submit" size="lg" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create admin account
+            <Button type="button" variant="outline" onClick={back} disabled={step === 0 || loading}>
+              <ArrowLeft className="h-4 w-4" /> Back
             </Button>
+            {isLast ? (
+              <Button type="submit" size="lg" disabled={loading}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />} Create admin account
+              </Button>
+            ) : (
+              <Button type="button" onClick={next}>
+                Next <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </form>
 
@@ -277,6 +355,28 @@ function AdminSignup() {
         </p>
       </div>
     </div>
+  );
+}
+
+function Stepper({ step }: { step: number }) {
+  return (
+    <ol className="mt-6 grid grid-cols-4 gap-2">
+      {STEPS.map((s, i) => {
+        const done = i < step;
+        const active = i === step;
+        return (
+          <li key={s.key} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${active ? "bg-primary text-primary-foreground" : done ? "bg-relief text-white" : "bg-muted text-muted-foreground"}`}>
+                {done ? <Check className="h-4 w-4" /> : i + 1}
+              </span>
+              <span className={`hidden text-xs font-medium sm:inline ${active ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+            </div>
+            <div className={`h-1 rounded-full ${i <= step ? "bg-primary" : "bg-muted"}`} />
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
