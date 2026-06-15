@@ -119,48 +119,12 @@ function Dashboard() {
         <KpiCard label="Requests pending" value={String(s?.fundsPending ?? 0)} icon={ShieldAlert} accent="warning" />
       </div>
 
-      <section className="mt-8 rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border p-5">
-          <h2 className="font-display text-lg font-semibold">Active disaster campaigns</h2>
-          <Button variant="ghost" size="sm" onClick={() => setOpenDialog("disasters")}>
-            View all <ArrowRight className="h-3 w-3" />
-          </Button>
-        </div>
-        <ul className="divide-y divide-border">
-          {(s?.disasters ?? []).length === 0 && (
-            <li className="p-10 text-center text-sm text-muted-foreground">No active disaster campaigns at this time.</li>
-          )}
-          {(s?.disasters ?? []).map((d: any) => {
-            const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
-            return (
-              <li key={d.id} className="grid gap-3 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
-                  <p className="mt-0.5 font-display text-lg font-semibold">{d.name}</p>
-                  <p className="text-sm text-muted-foreground">{d.city} · {d.affected_families.toLocaleString()} families affected</p>
-                  <div className="mt-3 max-w-md">
-                    <div className="flex items-baseline justify-between text-xs">
-                      <span className="text-muted-foreground">Funding</span>
-                      <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full bg-relief" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
-                  <Button variant="relief" size="sm" asChild>
-                    <Link to="/donate" search={{ disaster: d.id } as any}><HandHeart className="h-4 w-4" /> Donate</Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/request" search={{ disaster: d.id } as any}>Request aid</Link>
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <ActiveCampaignsSection
+        disasters={(s?.disasters ?? []) as any[]}
+        releasedByDisaster={s?.releasedByDisaster ?? {}}
+        onViewAll={() => setOpenDialog("disasters")}
+      />
+
 
       <section className="mt-8 rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-5">
