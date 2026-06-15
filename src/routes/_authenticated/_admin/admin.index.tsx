@@ -19,11 +19,17 @@ function AdminOverview() {
   const q = useQuery({
     queryKey: ["admin-overview"],
     queryFn: async () => {
-      const [donations, allocs, requests, disasters, inactiveDisasters, recentReqs, recentDonations] = await Promise.all([
+      const [donations, allocs, requests, disasters, activeDisastersFull, inactiveDisasters, recentReqs, recentDonations] = await Promise.all([
         supabase.from("donations").select("amount"),
-        supabase.from("fund_allocations").select("allocated_amount,released_amount"),
+        supabase.from("fund_allocations").select("disaster_id,allocated_amount,released_amount"),
         supabase.from("fund_requests").select("id,status"),
         supabase.from("disasters").select("id,status"),
+        supabase
+          .from("disasters")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,status,disaster_categories(name),occurred_at,created_at")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(100),
         supabase
           .from("disasters")
           .select("id,name,city,severity,affected_families,required_funding,raised_amount,status,disaster_categories(name),occurred_at,created_at")
@@ -41,6 +47,11 @@ function AdminOverview() {
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocs.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
       const totalR = (allocs.data ?? []).reduce((s, a) => s + Number(a.released_amount), 0);
+      const releasedByDisaster: Record<string, number> = {};
+      for (const a of allocs.data ?? []) {
+        if (!a.disaster_id) continue;
+        releasedByDisaster[a.disaster_id] = (releasedByDisaster[a.disaster_id] ?? 0) + Number(a.released_amount);
+      }
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
       const activeDisasters = (disasters.data ?? []).filter((d) => d.status === "active").length;
       return {
@@ -48,7 +59,9 @@ function AdminOverview() {
         available: Math.max(0, totalA - totalR),
         recentReqs: recentReqs.data ?? [],
         recentDonations: recentDonations.data ?? [],
+        activeDisastersList: activeDisastersFull.data ?? [],
         inactiveDisasters: inactiveDisasters.data ?? [],
+        releasedByDisaster,
       };
 
     },
@@ -59,6 +72,7 @@ function AdminOverview() {
       .channel("admin-overview-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "donations" }, () => qc.invalidateQueries({ queryKey: ["admin-overview"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "fund_allocations" }, () => qc.invalidateQueries({ queryKey: ["admin-overview"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "fund_releases" }, () => qc.invalidateQueries({ queryKey: ["admin-overview"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "fund_requests" }, () => qc.invalidateQueries({ queryKey: ["admin-overview"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "disasters" }, () => qc.invalidateQueries({ queryKey: ["admin-overview"] }))
       .subscribe();
