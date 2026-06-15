@@ -3,9 +3,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { formatPHP, timeAgo, formatDate } from "@/lib/format";
-import { Activity, HandHeart, ShieldAlert, TrendingUp, ArrowRight, MapPin } from "lucide-react";
+import { Activity, HandHeart, ShieldAlert, TrendingUp, ArrowRight, MapPin, Search } from "lucide-react";
 import { DashShell } from "@/components/sagip/DashShell";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -305,18 +307,49 @@ function DisastersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
 }
 
 function InactiveDisastersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const [status, setStatus] = useState<string>("all");
+  const [name, setName] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [sort, setSort] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">("date_desc");
+
   const q = useQuery({
     queryKey: ["dialog-inactive-disasters"],
     enabled: open,
     queryFn: async () => {
       const { data } = await supabase
         .from("disasters")
-        .select("id,name,city,severity,status,affected_families,required_funding,raised_amount,occurred_at,disaster_categories(name)")
+        .select("id,name,city,severity,status,affected_families,required_funding,raised_amount,occurred_at,created_at,disaster_categories(name)")
         .neq("status", "active")
         .order("created_at", { ascending: false });
       return data ?? [];
     },
   });
+
+  const all = q.data ?? [];
+  const statusOptions = Array.from(new Set(all.map((d: any) => d.status).filter(Boolean))) as string[];
+
+  const filtered = all
+    .filter((d: any) => status === "all" || d.status === status)
+    .filter((d: any) => !name.trim() || d.name?.toLowerCase().includes(name.trim().toLowerCase()))
+    .filter((d: any) => {
+      const ref = d.occurred_at ?? d.created_at;
+      if (!ref) return true;
+      const t = new Date(ref).getTime();
+      if (from && t < new Date(from).getTime()) return false;
+      if (to && t > new Date(to).getTime() + 86_400_000 - 1) return false;
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      if (sort === "name_asc") return a.name.localeCompare(b.name);
+      if (sort === "name_desc") return b.name.localeCompare(a.name);
+      const av = new Date(a.occurred_at ?? a.created_at).getTime();
+      const bv = new Date(b.occurred_at ?? b.created_at).getTime();
+      return sort === "date_asc" ? av - bv : bv - av;
+    });
+
+  const resetFilters = () => { setStatus("all"); setName(""); setFrom(""); setTo(""); setSort("date_desc"); };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
@@ -324,13 +357,47 @@ function InactiveDisastersDialog({ open, onOpenChange }: { open: boolean; onOpen
           <DialogTitle>Inactive disaster campaigns</DialogTitle>
           <DialogDescription>Closed disaster campaigns shown for transparency.</DialogDescription>
         </DialogHeader>
-        <div className="max-h-[65vh] overflow-y-auto">
+        <div className="border-b border-border bg-muted/30 p-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Campaign name" value={name} onChange={(e) => setName(e.target.value)} className="h-9 pl-8" />
+            </div>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {statusOptions.map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" aria-label="From date" />
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" aria-label="To date" />
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+              <SelectTrigger className="h-8 w-auto min-w-[180px] text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date_desc">Newest first</SelectItem>
+                <SelectItem value="date_asc">Oldest first</SelectItem>
+                <SelectItem value="name_asc">Name (A–Z)</SelectItem>
+                <SelectItem value="name_desc">Name (Z–A)</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{filtered.length} of {all.length}</span>
+              <Button variant="ghost" size="sm" className="h-8" onClick={resetFilters}>Reset</Button>
+            </div>
+          </div>
+        </div>
+        <div className="max-h-[55vh] overflow-y-auto">
           {q.isLoading && <p className="p-10 text-center text-sm text-muted-foreground">Loading…</p>}
-          {!q.isLoading && (q.data ?? []).length === 0 && (
-            <p className="p-10 text-center text-sm text-muted-foreground">No inactive campaigns.</p>
+          {!q.isLoading && filtered.length === 0 && (
+            <p className="p-10 text-center text-sm text-muted-foreground">No campaigns match these filters.</p>
           )}
           <ul className="divide-y divide-border">
-            {(q.data ?? []).map((d: any) => {
+            {filtered.map((d: any) => {
               const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
               return (
                 <li key={d.id} className="p-5">
@@ -338,9 +405,9 @@ function InactiveDisastersDialog({ open, onOpenChange }: { open: boolean; onOpen
                     <div className="min-w-0">
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
                       <p className="mt-0.5 font-display text-base font-semibold">{d.name}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.city} · {d.affected_families.toLocaleString()} families</p>
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.city} · {d.affected_families.toLocaleString()} families · {formatDate(d.occurred_at ?? d.created_at)}</p>
                     </div>
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.status}</span>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.status?.replace(/_/g, " ")}</span>
                   </div>
                   <div className="mt-3">
                     <div className="flex items-baseline justify-between text-xs">
