@@ -103,8 +103,8 @@ function Dashboard() {
       <section className="mt-8 rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-5">
           <h2 className="font-display text-lg font-semibold">Active disaster campaigns</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/disasters">View all <ArrowRight className="h-3 w-3" /></Link>
+          <Button variant="ghost" size="sm" onClick={() => setOpenDialog("disasters")}>
+            View all <ArrowRight className="h-3 w-3" />
           </Button>
         </div>
         <ul className="divide-y divide-border">
