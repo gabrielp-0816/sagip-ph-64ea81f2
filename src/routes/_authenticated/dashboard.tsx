@@ -304,7 +304,65 @@ function DisastersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   );
 }
 
+function InactiveDisastersDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const q = useQuery({
+    queryKey: ["dialog-inactive-disasters"],
+    enabled: open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("disasters")
+        .select("id,name,city,severity,status,affected_families,required_funding,raised_amount,occurred_at,disaster_categories(name)")
+        .neq("status", "active")
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden p-0">
+        <DialogHeader className="border-b border-border p-5">
+          <DialogTitle>Inactive disaster campaigns</DialogTitle>
+          <DialogDescription>Closed disaster campaigns shown for transparency.</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[65vh] overflow-y-auto">
+          {q.isLoading && <p className="p-10 text-center text-sm text-muted-foreground">Loading…</p>}
+          {!q.isLoading && (q.data ?? []).length === 0 && (
+            <p className="p-10 text-center text-sm text-muted-foreground">No inactive campaigns.</p>
+          )}
+          <ul className="divide-y divide-border">
+            {(q.data ?? []).map((d: any) => {
+              const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+              return (
+                <li key={d.id} className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
+                      <p className="mt-0.5 font-display text-base font-semibold">{d.name}</p>
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.city} · {d.affected_families.toLocaleString()} families</p>
+                    </div>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.status}</span>
+                  </div>
+                  <div className="mt-3">
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="text-muted-foreground">Final funding</span>
+                      <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full bg-muted-foreground" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DonationsDialog({ open, onOpenChange, uid }: { open: boolean; onOpenChange: (o: boolean) => void; uid: string }) {
+
   const q = useQuery({
     queryKey: ["dialog-my-donations", uid],
     enabled: open && !!uid,
