@@ -110,7 +110,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
           )}
         >
           <nav className="space-y-0.5">
-            {nav.map((n) => {
+            {nav.filter((n) => !n.superOnly || isSuperAdmin).map((n) => {
               const Icon = n.icon;
               const active = n.exact ? pathname === n.to : pathname === n.to || pathname.startsWith(n.to + "/");
               return (
