@@ -198,13 +198,14 @@ function Users() {
         </table>
       </div>
 
+      {isSuperAdmin && (
       <div className="mt-10 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="rounded-lg bg-primary/10 p-2 text-primary"><KeyRound className="h-4 w-4" /></span>
             <div>
               <h2 className="font-display text-lg font-semibold">Administrator invite codes</h2>
-              <p className="text-xs text-muted-foreground">Generate single-use codes for new admin registrations. All code usage is logged.</p>
+              <p className="text-xs text-muted-foreground">Super-admin only. Generate single-use codes for new admin registrations. All code usage is logged.</p>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => setShowCodes((s) => !s)}>{showCodes ? "Hide codes" : "Show codes"}</Button>
@@ -260,6 +261,7 @@ function Users() {
           </div>
         )}
       </div>
+      )}
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-md">
