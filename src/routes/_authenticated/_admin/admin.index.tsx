@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/sagip/AdminShell";
 import { formatPHP, timeAgo } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { HandHeart, Wallet, AlertTriangle, ArrowRight, Siren } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HandHeart, Wallet, AlertTriangle, ArrowRight, Siren, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/_admin/admin/")({
   head: () => ({ meta: [{ title: "Admin overview — SAGIP" }] }),
