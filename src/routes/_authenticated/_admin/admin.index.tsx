@@ -162,27 +162,62 @@ function AdminOverview() {
           <h2 className="font-display text-base font-semibold">Inactive / closed disaster campaigns</h2>
           <Button variant="ghost" size="sm" asChild><Link to="/admin/disasters">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
         </div>
+        <div className="border-b border-border bg-muted/30 p-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Campaign name" value={iName} onChange={(e) => setIName(e.target.value)} className="h-9 pl-8" />
+            </div>
+            <Select value={iStatus} onValueChange={setIStatus}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {inactiveStatusOptions.map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, " ")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input type="date" value={iFrom} onChange={(e) => setIFrom(e.target.value)} className="h-9" aria-label="From date" />
+            <Input type="date" value={iTo} onChange={(e) => setITo(e.target.value)} className="h-9" aria-label="To date" />
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <Select value={iSort} onValueChange={(v) => setISort(v as any)}>
+              <SelectTrigger className="h-8 w-auto min-w-[180px] text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date_desc">Newest first</SelectItem>
+                <SelectItem value="date_asc">Oldest first</SelectItem>
+                <SelectItem value="name_asc">Name (A–Z)</SelectItem>
+                <SelectItem value="name_desc">Name (Z–A)</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{inactiveFiltered.length} of {inactiveAll.length}</span>
+              <Button variant="ghost" size="sm" className="h-8" onClick={resetInactiveFilters}>Reset</Button>
+            </div>
+          </div>
+        </div>
         <ul className="divide-y divide-border">
-          {(d?.inactiveDisasters ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No inactive campaigns.</li>}
-          {(d?.inactiveDisasters ?? []).map((d: any) => {
-            const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+          {inactiveAll.length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No inactive campaigns.</li>}
+          {inactiveAll.length > 0 && inactiveFiltered.length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No campaigns match these filters.</li>}
+          {inactiveFiltered.map((row: any) => {
+            const pct = row.required_funding > 0 ? Math.min(100, (Number(row.raised_amount) / Number(row.required_funding)) * 100) : 0;
             return (
-              <li key={d.id} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+              <li key={row.id} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
                 <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
-                  <p className="mt-0.5 font-medium">{d.name}</p>
-                  <p className="text-xs text-muted-foreground">{d.city} · {d.affected_families.toLocaleString()} families · {timeAgo(d.created_at)}</p>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{row.disaster_categories?.name}</p>
+                  <p className="mt-0.5 font-medium">{row.name}</p>
+                  <p className="text-xs text-muted-foreground">{row.city} · {row.affected_families.toLocaleString()} families · {timeAgo(row.occurred_at ?? row.created_at)}</p>
                   <div className="mt-2 max-w-md">
                     <div className="flex items-baseline justify-between text-xs">
                       <span className="text-muted-foreground">Final funding</span>
-                      <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                      <span className="font-semibold tabular-nums">{formatPHP(row.raised_amount)} / {formatPHP(row.required_funding, { compact: true })}</span>
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
                       <div className="h-full bg-muted-foreground" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 </div>
-                <span className="inline-flex items-center justify-center rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{d.status}</span>
+                <span className="inline-flex items-center justify-center rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase capitalize">{row.status?.replace(/_/g, " ")}</span>
               </li>
             );
           })}
