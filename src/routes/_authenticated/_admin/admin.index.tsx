@@ -26,10 +26,10 @@ function AdminOverview() {
         supabase.from("disasters").select("id,status"),
         supabase
           .from("disasters")
-          .select("id,name,city,severity,affected_families,required_funding,raised_amount,status,disaster_categories(name),created_at")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,status,disaster_categories(name),occurred_at,created_at")
           .neq("status", "active")
           .order("created_at", { ascending: false })
-          .limit(10),
+          .limit(100),
         supabase.from("fund_requests").select("id,disaster_description,requested_amount,status,created_at").order("created_at", { ascending: false }).limit(5),
         supabase
           .from("donations")
