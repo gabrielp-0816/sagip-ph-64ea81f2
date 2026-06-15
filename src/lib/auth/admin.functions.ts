@@ -175,12 +175,12 @@ export const listAdminInviteCodes = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase } = context;
 
-    const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
+    const { data: isSuperAdmin, error: roleErr } = await supabase.rpc("has_role", {
       _user_id: context.userId,
-      _role: "admin" as any,
+      _role: "super_admin" as any,
     });
     if (roleErr) throw new Error(roleErr.message);
-    if (!isAdmin) throw new Error("Only administrators can view invite codes");
+    if (!isSuperAdmin) throw new Error("Only super administrators can view invite codes");
 
     const { data, error } = await supabase
       .from("admin_invite_codes")
