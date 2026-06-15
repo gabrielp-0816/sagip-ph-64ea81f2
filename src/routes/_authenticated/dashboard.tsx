@@ -1,16 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { formatPHP, timeAgo } from "@/lib/format";
-import { Activity, HandHeart, FileText, ShieldAlert, TrendingUp, ArrowRight } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { formatPHP, timeAgo, formatDate } from "@/lib/format";
+import { Activity, HandHeart, ShieldAlert, TrendingUp, ArrowRight, MapPin } from "lucide-react";
 import { DashShell } from "@/components/sagip/DashShell";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — SAGIP" }] }),
   component: Dashboard,
 });
+
+type DialogKind = null | "disasters" | "donations" | "requests";
 
 function Dashboard() {
   const queryClient = useQueryClient();
