@@ -24,7 +24,6 @@ export const Route = createFileRoute("/_authenticated/_admin/admin/users")({
 });
 
 function Users() {
-function Users() {
   const qc = useQueryClient();
   const { isSuperAdmin } = useIsSuperAdmin();
   const [search, setSearch] = useState("");
