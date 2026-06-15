@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   Bell,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ const nav: NavItem[] = [
   { to: "/admin/transactions", label: "Transaction history", icon: ArrowLeftRight },
   { to: "/admin/users", label: "Users & roles", icon: Users },
   { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+  { to: "/profile", label: "My profile", icon: User },
 ];
 
 export function AdminShell({ children, title, subtitle, actions }: { children: ReactNode; title: string; subtitle?: string; actions?: ReactNode }) {
