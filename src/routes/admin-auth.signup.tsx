@@ -17,9 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { METRO_MANILA_CITIES, isValidEmail } from "@/lib/locations";
+import { PH_PROVINCES, PH_PROVINCES_CITIES } from "@/lib/ph-locations";
+import { isValidEmail } from "@/lib/locations";
 import { toast } from "sonner";
-import { Loader2, KeyRound, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Loader2, KeyRound, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check, AlertTriangle } from "lucide-react";
 
 const passwordRules = z
   .string()
@@ -52,7 +53,12 @@ const schema = z
     firstName: z.string().trim().min(1, "Required").max(80),
     middleName: z.string().trim().max(80).optional(),
     lastName: z.string().trim().min(1, "Required").max(80),
-    birthDate: z.string().min(4, "Required"),
+    birthDate: z.string().refine((v) => {
+      if (!v) return false;
+      const d = new Date(v); if (isNaN(d.getTime())) return false;
+      const age = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+      return age >= 18 && age <= 120;
+    }, "Age must be between 18 and 120 years"),
     gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
     mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
     email: z.string().refine(isValidEmail, "Enter a valid email address").transform((v) => v.toLowerCase()),
@@ -61,13 +67,23 @@ const schema = z
     province: z.string().min(2, "Required").max(80),
     inviteCode: z.string().trim().min(4, "Required").max(80),
     idType: idTypeEnum,
-    idNumber: z.string().trim().min(3, "Required").max(50),
+    idNumber: z.string()
+      .trim()
+      .min(3, "Required")
+      .max(50)
+      .regex(/^[0-9-]+$/, "ID number may contain digits and dashes only"),
     password: passwordRules,
-    confirm: z.string(),
+    confirm: z.string().min(1, "Please confirm your password"),
     acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms and Conditions" }) }),
     acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "Consent to data processing is required under RA 10173" }) }),
   })
-  .refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
+  .superRefine((d, ctx) => {
+    if (!d.confirm) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirm"], message: "Please confirm your password" });
+    } else if (d.password !== d.confirm) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirm"], message: "Passwords do not match" });
+    }
+  });
 
 type FormVals = z.infer<typeof schema>;
 
@@ -119,12 +135,23 @@ function AdminSignup() {
   const [step, setStep] = useState(0);
   const { register, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { province: "Metro Manila", acceptTerms: false as any, acceptPrivacy: false as any },
+    defaultValues: { acceptTerms: false as any, acceptPrivacy: false as any },
   });
 
   const idType = watch("idType");
   const city = watch("city");
+  const province = watch("province");
   const gender = watch("gender");
+  const birthDate = watch("birthDate");
+  const computedAge = (() => {
+    if (!birthDate) return null;
+    const d = new Date(birthDate); if (isNaN(d.getTime())) return null;
+    const t = new Date();
+    let a = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--;
+    return a;
+  })();
 
   const next = async () => {
     const fields = STEP_FIELDS[step];
@@ -227,21 +254,41 @@ function AdminSignup() {
                   <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
                 </Field>
               </div>
+              {computedAge !== null && computedAge > 120 && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>The age you entered exceeds 120 years. Please verify your birth date — registration is limited to ages 18–120.</span>
+                </div>
+              )}
               <Field label="Email address" error={errors.email?.message}>
                 <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
               </Field>
               <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="City" error={errors.city?.message}>
-                  <Select value={city ?? ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
-                    <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
-                    <SelectContent>
-                      {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <Field label="Province" error={errors.province?.message}>
+                  <Select
+                    value={province ?? ""}
+                    onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Province" error={errors.province?.message}>
-                  <Input {...register("province")} defaultValue="Metro Manila" />
+                <Field label="City / Municipality" error={errors.city?.message}>
+                  <Select
+                    value={city ?? ""}
+                    onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
+                    disabled={!province}
+                  >
+                    <SelectTrigger><SelectValue placeholder={province ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {(PH_PROVINCES_CITIES[province ?? ""] ?? []).slice().sort().map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
               </div>
             </Section>
@@ -268,7 +315,15 @@ function AdminSignup() {
                     </Select>
                   </Field>
                   <Field label="ID number" error={errors.idNumber?.message}>
-                    <Input {...register("idNumber")} placeholder="As printed on the ID" />
+                    <Input
+                      {...register("idNumber")}
+                      inputMode="numeric"
+                      placeholder="Digits and dashes only"
+                      onInput={(e) => {
+                        const el = e.currentTarget as HTMLInputElement;
+                        el.value = el.value.replace(/[^0-9-]/g, "");
+                      }}
+                    />
                   </Field>
                 </div>
                 <Label className="text-sm">ID document (JPG, PNG, WEBP, or PDF — max 5MB)</Label>
