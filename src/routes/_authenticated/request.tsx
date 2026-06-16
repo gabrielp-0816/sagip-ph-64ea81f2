@@ -223,7 +223,13 @@ function RequestPage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="city">City</Label>
-                <Select value={watch("city") || ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
+                <Select
+                  value={watch("city") || ""}
+                  onValueChange={(v) => {
+                    setValue("city", v, { shouldValidate: true });
+                    setValue("barangay", "", { shouldValidate: false });
+                  }}
+                >
                   <SelectTrigger id="city" className="mt-1.5"><SelectValue placeholder="Select Metro Manila city" /></SelectTrigger>
                   <SelectContent>
                     {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -233,9 +239,27 @@ function RequestPage() {
               </div>
               <div>
                 <Label htmlFor="brgy">Barangay</Label>
-                <Input id="brgy" className="mt-1.5" placeholder="Enter your barangay" {...register("barangay")} />
+                {(() => {
+                  const selectedCity = watch("city") || "";
+                  const barangays = METRO_MANILA_BARANGAYS[selectedCity] ?? [];
+                  return (
+                    <Select
+                      value={watch("barangay") || ""}
+                      onValueChange={(v) => setValue("barangay", v, { shouldValidate: true })}
+                      disabled={!selectedCity}
+                    >
+                      <SelectTrigger id="brgy" className="mt-1.5">
+                        <SelectValue placeholder={selectedCity ? "Select your barangay" : "Select a city first"} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {barangays.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
                 {errors.barangay && <p className="mt-1 text-xs text-destructive">{errors.barangay.message}</p>}
               </div>
+
               <div className="sm:col-span-2">
                 <Label htmlFor="exact">Exact address / landmark</Label>
                 <Input id="exact" className="mt-1.5" {...register("exact_location")} placeholder="House #, street, sitio, landmark" />
