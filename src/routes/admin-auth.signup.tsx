@@ -53,7 +53,12 @@ const schema = z
     firstName: z.string().trim().min(1, "Required").max(80),
     middleName: z.string().trim().max(80).optional(),
     lastName: z.string().trim().min(1, "Required").max(80),
-    birthDate: z.string().min(4, "Required"),
+    birthDate: z.string().refine((v) => {
+      if (!v) return false;
+      const d = new Date(v); if (isNaN(d.getTime())) return false;
+      const age = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+      return age >= 18 && age <= 120;
+    }, "Age must be between 18 and 120 years"),
     gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
     mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
     email: z.string().refine(isValidEmail, "Enter a valid email address").transform((v) => v.toLowerCase()),
@@ -62,13 +67,23 @@ const schema = z
     province: z.string().min(2, "Required").max(80),
     inviteCode: z.string().trim().min(4, "Required").max(80),
     idType: idTypeEnum,
-    idNumber: z.string().trim().min(3, "Required").max(50),
+    idNumber: z.string()
+      .trim()
+      .min(3, "Required")
+      .max(50)
+      .regex(/^[0-9-]+$/, "ID number may contain digits and dashes only"),
     password: passwordRules,
-    confirm: z.string(),
+    confirm: z.string().min(1, "Please confirm your password"),
     acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms and Conditions" }) }),
     acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "Consent to data processing is required under RA 10173" }) }),
   })
-  .refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
+  .superRefine((d, ctx) => {
+    if (!d.confirm) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirm"], message: "Please confirm your password" });
+    } else if (d.password !== d.confirm) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirm"], message: "Passwords do not match" });
+    }
+  });
 
 type FormVals = z.infer<typeof schema>;
 
