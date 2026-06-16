@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TermsDialog } from "@/components/sagip/TermsDialog";
+import { PH_PROVINCES, PH_PROVINCES_CITIES } from "@/lib/ph-locations";
 import { toast } from "sonner";
-import { Loader2, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Loader2, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check, AlertTriangle } from "lucide-react";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
