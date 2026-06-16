@@ -39,10 +39,11 @@ const schema = z.object({
   lastName: z.string().trim().min(1, "Required").max(80),
   birthDate: z.string().refine((v) => {
     if (!v) return false;
-    const d = new Date(v); const today = new Date();
+    const d = new Date(v); if (isNaN(d.getTime())) return false;
+    const today = new Date();
     const age = (today.getTime() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
-    return age >= 18 && age < 120;
-  }, "You must be at least 18 years old"),
+    return age >= 18 && age <= 120;
+  }, "Age must be between 18 and 120 years"),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
   email: z.string().email().refine((v) => {
@@ -55,15 +56,24 @@ const schema = z.object({
     return /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(domain);
   }, "Enter a valid email address"),
   address: z.string().min(5, "Required").max(200),
-  city: z.string().min(2).max(80),
-  province: z.string().min(2).max(80),
+  city: z.string().min(2, "Required").max(80),
+  province: z.string().min(2, "Required").max(80),
   idType: z.enum(["national_id", "drivers_license", "passport", "umid", "postal_id", "voters_id"]),
-  idNumber: z.string().min(3).max(50),
+  idNumber: z.string()
+    .min(3, "Required")
+    .max(50)
+    .regex(/^[0-9-]+$/, "ID number may contain digits and dashes only"),
   password: passwordRules,
-  confirm: z.string(),
+  confirm: z.string().min(1, "Please confirm your password"),
   acceptTerms: z.literal(true, { errorMap: () => ({ message: "You must accept the Terms and Conditions" }) }),
   acceptPrivacy: z.literal(true, { errorMap: () => ({ message: "Consent to data processing is required under RA 10173" }) }),
-}).refine((d) => d.password === d.confirm, { message: "Passwords do not match", path: ["confirm"] });
+}).superRefine((d, ctx) => {
+  if (!d.confirm) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirm"], message: "Please confirm your password" });
+  } else if (d.password !== d.confirm) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["confirm"], message: "Passwords do not match" });
+  }
+});
 
 type FormVals = z.infer<typeof schema>;
 
