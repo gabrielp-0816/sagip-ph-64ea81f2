@@ -6,9 +6,7 @@ import { SagipLogo } from "./Logo";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
-  Siren,
-  Wallet,
-  ClipboardCheck,
+  Workflow,
   HandHeart,
   Users,
   ScrollText,
@@ -25,15 +23,14 @@ import { useIsSuperAdmin } from "@/lib/auth/use-role";
 type NavItem = { to: string; label: string; icon: any; exact?: boolean; superOnly?: boolean };
 const nav: NavItem[] = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/admin/disasters", label: "Disaster campaigns", icon: Siren },
-  { to: "/admin/allocations", label: "Fund allocations", icon: Wallet },
-  { to: "/admin/requests", label: "Assistance requests", icon: ClipboardCheck },
+  { to: "/admin/operations", label: "Operations", icon: Workflow },
   { to: "/admin/donations", label: "Donations", icon: HandHeart },
   { to: "/admin/transactions", label: "Transaction history", icon: ArrowLeftRight },
   { to: "/admin/users", label: "Users & roles", icon: Users },
   { to: "/admin/audit", label: "Audit log", icon: ScrollText, superOnly: true },
   { to: "/profile", label: "My profile", icon: User },
 ];
+
 
 export function AdminShell({ children, title, subtitle, actions }: { children: ReactNode; title: string; subtitle?: string; actions?: ReactNode }) {
   const navigate = useNavigate();
