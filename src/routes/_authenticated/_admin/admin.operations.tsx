@@ -210,7 +210,7 @@ function Operations() {
         affected_families: Math.max(1, Math.ceil((r.affected_individuals ?? 1) / 5)),
         required_funding: r.requested_amount ?? 0,
         occurred_at: r.created_at ?? new Date().toISOString(),
-        created_by: u.user?.id ?? null,
+        created_by: r.requester_id ?? u.user?.id ?? null,
       }).select("id").single();
       if (dErr) return toast.error(`Could not create campaign: ${dErr.message}`);
       linkedDisasterId = created.id;
