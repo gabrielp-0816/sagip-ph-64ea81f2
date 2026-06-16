@@ -53,7 +53,7 @@ function Dashboard() {
         supabase.from("fund_allocations").select("disaster_id,allocated_amount,released_amount"),
         supabase
           .from("disasters")
-          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,occurred_at,created_at,disaster_categories(name)")
+          .select("id,name,city,severity,affected_families,required_funding,raised_amount,created_by,status,occurred_at,created_at,closure_requested,closure_requested_at,disaster_categories(name)")
           .eq("status", "active")
           .order("created_at", { ascending: false })
           .limit(100),
