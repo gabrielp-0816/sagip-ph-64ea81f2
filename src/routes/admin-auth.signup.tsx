@@ -315,7 +315,15 @@ function AdminSignup() {
                     </Select>
                   </Field>
                   <Field label="ID number" error={errors.idNumber?.message}>
-                    <Input {...register("idNumber")} placeholder="As printed on the ID" />
+                    <Input
+                      {...register("idNumber")}
+                      inputMode="numeric"
+                      placeholder="Digits and dashes only"
+                      onInput={(e) => {
+                        const el = e.currentTarget as HTMLInputElement;
+                        el.value = el.value.replace(/[^0-9-]/g, "");
+                      }}
+                    />
                   </Field>
                 </div>
                 <Label className="text-sm">ID document (JPG, PNG, WEBP, or PDF — max 5MB)</Label>
