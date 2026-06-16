@@ -207,14 +207,43 @@ function SignupPage() {
                 </Select>
               </Field>
             </div>
+            {age !== "" && Number(age) > 120 && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>The age you entered exceeds 120 years. Please verify your birth date — registration is limited to ages 18–120.</span>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Mobile number" error={errors.mobile?.message}><Input placeholder="09XXXXXXXXX" {...register("mobile")} /></Field>
               <Field label="Email address" error={errors.email?.message}><Input type="email" {...register("email")} /></Field>
             </div>
             <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="City" error={errors.city?.message}><Input {...register("city")} /></Field>
-              <Field label="Province" error={errors.province?.message}><Input {...register("province")} /></Field>
+              <Field label="Province" error={errors.province?.message}>
+                <Select
+                  value={watch("province") ?? ""}
+                  onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="City / Municipality" error={errors.city?.message}>
+                <Select
+                  value={watch("city") ?? ""}
+                  onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
+                  disabled={!watch("province")}
+                >
+                  <SelectTrigger><SelectValue placeholder={watch("province") ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {(PH_PROVINCES_CITIES[watch("province") ?? ""] ?? []).slice().sort().map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
           </Fieldset>
         )}
