@@ -166,7 +166,7 @@ function AdminOverview() {
       <section className="mt-8 min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-5">
           <h2 className="font-display text-base font-semibold">Active disaster campaigns</h2>
-          <Button variant="ghost" size="sm" asChild><Link to="/admin/disasters">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
+          <Button variant="ghost" size="sm" asChild><Link to="/admin/operations">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
         </div>
         <div className="border-b border-border bg-muted/30 p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -241,7 +241,7 @@ function AdminOverview() {
         <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
-            <Button variant="ghost" size="sm" asChild><Link to="/admin/requests">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
+            <Button variant="ghost" size="sm" asChild><Link to="/admin/operations">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
           </div>
           <ul className="divide-y divide-border">
             {(d?.recentReqs ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No requests yet.</li>}
@@ -287,7 +287,7 @@ function AdminOverview() {
       <section className="mt-8 min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-5">
           <h2 className="font-display text-base font-semibold">Inactive / closed disaster campaigns</h2>
-          <Button variant="ghost" size="sm" asChild><Link to="/admin/disasters">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
+          <Button variant="ghost" size="sm" asChild><Link to="/admin/operations">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
         </div>
         <div className="border-b border-border bg-muted/30 p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
