@@ -135,12 +135,23 @@ function AdminSignup() {
   const [step, setStep] = useState(0);
   const { register, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { province: "Metro Manila", acceptTerms: false as any, acceptPrivacy: false as any },
+    defaultValues: { acceptTerms: false as any, acceptPrivacy: false as any },
   });
 
   const idType = watch("idType");
   const city = watch("city");
+  const province = watch("province");
   const gender = watch("gender");
+  const birthDate = watch("birthDate");
+  const computedAge = (() => {
+    if (!birthDate) return null;
+    const d = new Date(birthDate); if (isNaN(d.getTime())) return null;
+    const t = new Date();
+    let a = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--;
+    return a;
+  })();
 
   const next = async () => {
     const fields = STEP_FIELDS[step];
