@@ -283,10 +283,15 @@ function Operations() {
         await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
       }
     }
-    await supabase.from("fund_requests").update({ status: "released" }).eq("id", releaseFor.id);
-    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path });
-    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
-    toast.success("Funds released with proof recorded");
+    // Decide whether the request is now fully fulfilled
+    const { data: existingReleases } = await supabase.from("fund_releases").select("amount").eq("request_id", releaseFor.id);
+    const totalReleased = (existingReleases ?? []).reduce((s: number, x: any) => s + Number(x.amount), 0);
+    const requested = Number(releaseFor.requested_amount ?? 0);
+    const fullyFulfilled = requested > 0 && totalReleased >= requested;
+    await supabase.from("fund_requests").update({ status: fullyFulfilled ? "released" : "approved" }).eq("id", releaseFor.id);
+    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path, fully_fulfilled: fullyFulfilled });
+    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released${fullyFulfilled ? " (request fully fulfilled)" : " (partial release)"}. Reference: ${releaseForm.reference_number || "—"}`, "high");
+    toast.success(fullyFulfilled ? "Funds released — request fully fulfilled" : "Partial release recorded — you can release more later");
     setReleaseFor(null);
     setReleaseForm({ amount: "", allocation_id: "", reference_number: "", notes: "" });
     setReleaseProof(null);
