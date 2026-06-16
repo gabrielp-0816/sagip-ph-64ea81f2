@@ -390,6 +390,11 @@ function Operations() {
                         {approvedCount} to release
                       </span>
                     )}
+                    {d.closure_requested && d.status !== "closed" && (
+                      <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive" title={d.closure_reason ?? ""}>
+                        Closure requested
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>{d.city}{d.barangay ? ` · ${d.barangay}` : ""}</span>
