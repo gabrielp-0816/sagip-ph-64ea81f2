@@ -78,6 +78,7 @@ function Dashboard() {
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
       // Exclude campaigns the current user created — they shouldn't donate to their own.
       const visibleDisasters = (disasters.data ?? []).filter((d: any) => d.created_by !== uid);
+      const myCampaigns = (disasters.data ?? []).filter((d: any) => d.created_by === uid);
       const visibleInactive = (inactiveDisasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
       return {
         totalDonations: totalD,
@@ -85,6 +86,7 @@ function Dashboard() {
         fundsReleased: totalR,
         fundsPending: pending,
         disasters: visibleDisasters,
+        myCampaigns,
         inactiveDisasters: visibleInactive,
         releasedByDisaster,
         myDonations: myDonations.data ?? [],
