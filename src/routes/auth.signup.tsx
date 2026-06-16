@@ -264,7 +264,17 @@ function SignupPage() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="ID number" error={errors.idNumber?.message}><Input {...register("idNumber")} /></Field>
+              <Field label="ID number" error={errors.idNumber?.message}>
+                <Input
+                  inputMode="numeric"
+                  placeholder="Digits and dashes only"
+                  {...register("idNumber")}
+                  onInput={(e) => {
+                    const el = e.currentTarget as HTMLInputElement;
+                    el.value = el.value.replace(/[^0-9-]/g, "");
+                  }}
+                />
+              </Field>
             </div>
             <Label className="block">ID document</Label>
             <label className="flex cursor-pointer items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-paper px-4 py-8 text-sm text-muted-foreground hover:border-primary hover:bg-accent">
