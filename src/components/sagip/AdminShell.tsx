@@ -121,9 +121,10 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
                   )}
                 >
                   <Icon className="h-4 w-4" /> {n.label}
-                  {n.to === "/admin/requests" && !!meta.data?.pending && (
+                  {n.to === "/admin/operations" && !!meta.data?.pending && (
                     <span className="ml-auto rounded-full bg-warning px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">{meta.data.pending}</span>
                   )}
+
                 </Link>
               );
             })}
