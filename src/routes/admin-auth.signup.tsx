@@ -17,9 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { METRO_MANILA_CITIES, isValidEmail } from "@/lib/locations";
+import { PH_PROVINCES, PH_PROVINCES_CITIES } from "@/lib/ph-locations";
+import { isValidEmail } from "@/lib/locations";
 import { toast } from "sonner";
-import { Loader2, KeyRound, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { Loader2, KeyRound, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check, AlertTriangle } from "lucide-react";
 
 const passwordRules = z
   .string()
