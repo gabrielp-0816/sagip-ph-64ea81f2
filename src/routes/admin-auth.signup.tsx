@@ -254,21 +254,41 @@ function AdminSignup() {
                   <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
                 </Field>
               </div>
+              {computedAge !== null && computedAge > 120 && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>The age you entered exceeds 120 years. Please verify your birth date — registration is limited to ages 18–120.</span>
+                </div>
+              )}
               <Field label="Email address" error={errors.email?.message}>
                 <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
               </Field>
               <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="City" error={errors.city?.message}>
-                  <Select value={city ?? ""} onValueChange={(v) => setValue("city", v, { shouldValidate: true })}>
-                    <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
-                    <SelectContent>
-                      {METRO_MANILA_CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <Field label="Province" error={errors.province?.message}>
+                  <Select
+                    value={province ?? ""}
+                    onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Province" error={errors.province?.message}>
-                  <Input {...register("province")} defaultValue="Metro Manila" />
+                <Field label="City / Municipality" error={errors.city?.message}>
+                  <Select
+                    value={city ?? ""}
+                    onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
+                    disabled={!province}
+                  >
+                    <SelectTrigger><SelectValue placeholder={province ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {(PH_PROVINCES_CITIES[province ?? ""] ?? []).slice().sort().map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Field>
               </div>
             </Section>
