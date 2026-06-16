@@ -229,6 +229,93 @@ function Dashboard() {
   );
 }
 
+function MyCampaignsSection({ campaigns }: { campaigns: any[] }) {
+  const qc = useQueryClient();
+  const [target, setTarget] = useState<any | null>(null);
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!campaigns || campaigns.length === 0) return null;
+
+  const submitClosure = async () => {
+    if (!target) return;
+    if (!reason.trim()) return toast.error("Please share why you'd like this campaign closed.");
+    setSubmitting(true);
+    const { error } = await supabase.rpc("request_campaign_closure", { _disaster_id: target.id, _reason: reason.trim() });
+    setSubmitting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Closure request submitted. An admin will review it shortly.");
+    setTarget(null);
+    setReason("");
+    qc.invalidateQueries({ queryKey: ["dashboard-summary"] });
+  };
+
+  return (
+    <section className="mt-8 rounded-xl border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border p-5">
+        <div>
+          <h2 className="font-display text-lg font-semibold">My campaigns</h2>
+          <p className="text-xs text-muted-foreground">Campaigns started from your assistance requests.</p>
+        </div>
+      </div>
+      <ul className="divide-y divide-border">
+        {campaigns.map((d: any) => {
+          const pct = d.required_funding > 0 ? Math.min(100, (Number(d.raised_amount) / Number(d.required_funding)) * 100) : 0;
+          return (
+            <li key={d.id} className="grid gap-3 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
+                <p className="mt-0.5 font-display text-lg font-semibold">{d.name}</p>
+                <p className="text-sm text-muted-foreground">{d.city} · {d.affected_families?.toLocaleString?.() ?? d.affected_families} families affected</p>
+                <div className="mt-3 max-w-md">
+                  <div className="flex items-baseline justify-between text-xs">
+                    <span className="text-muted-foreground">Raised</span>
+                    <span className="font-semibold tabular-nums">{formatPHP(d.raised_amount)} / {formatPHP(d.required_funding, { compact: true })}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full bg-gradient-to-r from-relief to-primary" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+                {d.closure_requested ? (
+                  <span className="inline-flex items-center justify-center rounded-full bg-warning/15 px-3 py-1 text-[10px] font-semibold uppercase text-warning-foreground">
+                    Closure requested
+                  </span>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => { setTarget(d); setReason(""); }}>
+                    <X className="h-3.5 w-3.5" /> Request to close
+                  </Button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <Dialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request to close campaign</DialogTitle>
+            <DialogDescription>
+              Admins will be notified to review and close <span className="font-medium">{target?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Reason for closing *</Label>
+            <Textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. our community has recovered and no longer needs additional aid" />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTarget(null)}>Cancel</Button>
+            <Button onClick={submitClosure} disabled={submitting}>Submit closure request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}
+
+
 function ActiveCampaignsSection({
   disasters,
   releasedByDisaster,
