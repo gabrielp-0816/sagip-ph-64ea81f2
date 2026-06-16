@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { METRO_MANILA_CITIES } from "@/lib/locations";
+import { METRO_MANILA_BARANGAYS } from "@/lib/ph-barangays";
 import { toast } from "sonner";
 import { Loader2, Upload, FileText, AlertTriangle, X } from "lucide-react";
 
