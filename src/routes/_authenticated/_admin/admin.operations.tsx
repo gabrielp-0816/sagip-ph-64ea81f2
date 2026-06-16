@@ -210,7 +210,7 @@ function Operations() {
         affected_families: Math.max(1, Math.ceil((r.affected_individuals ?? 1) / 5)),
         required_funding: r.requested_amount ?? 0,
         occurred_at: r.created_at ?? new Date().toISOString(),
-        created_by: u.user?.id ?? null,
+        created_by: r.requester_id ?? u.user?.id ?? null,
       }).select("id").single();
       if (dErr) return toast.error(`Could not create campaign: ${dErr.message}`);
       linkedDisasterId = created.id;
@@ -283,10 +283,15 @@ function Operations() {
         await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
       }
     }
-    await supabase.from("fund_requests").update({ status: "released" }).eq("id", releaseFor.id);
-    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path });
-    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
-    toast.success("Funds released with proof recorded");
+    // Decide whether the request is now fully fulfilled
+    const { data: existingReleases } = await supabase.from("fund_releases").select("amount").eq("request_id", releaseFor.id);
+    const totalReleased = (existingReleases ?? []).reduce((s: number, x: any) => s + Number(x.amount), 0);
+    const requested = Number(releaseFor.requested_amount ?? 0);
+    const fullyFulfilled = requested > 0 && totalReleased >= requested;
+    await supabase.from("fund_requests").update({ status: fullyFulfilled ? "released" : "approved" }).eq("id", releaseFor.id);
+    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path, fully_fulfilled: fullyFulfilled });
+    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released${fullyFulfilled ? " (request fully fulfilled)" : " (partial release)"}. Reference: ${releaseForm.reference_number || "—"}`, "high");
+    toast.success(fullyFulfilled ? "Funds released — request fully fulfilled" : "Partial release recorded — you can release more later");
     setReleaseFor(null);
     setReleaseForm({ amount: "", allocation_id: "", reference_number: "", notes: "" });
     setReleaseProof(null);
@@ -383,6 +388,11 @@ function Operations() {
                     {approvedCount > 0 && (
                       <span className="rounded-full bg-relief/20 px-2 py-0.5 text-[10px] font-semibold text-relief">
                         {approvedCount} to release
+                      </span>
+                    )}
+                    {d.closure_requested && d.status !== "closed" && (
+                      <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-destructive" title={d.closure_reason ?? ""}>
+                        Closure requested
                       </span>
                     )}
                   </div>

@@ -109,6 +109,9 @@ export type Database = {
           category_id: string
           city: string
           closed_at: string | null
+          closure_reason: string | null
+          closure_requested: boolean
+          closure_requested_at: string | null
           cover_image_url: string | null
           created_at: string
           created_by: string | null
@@ -130,6 +133,9 @@ export type Database = {
           category_id: string
           city: string
           closed_at?: string | null
+          closure_reason?: string | null
+          closure_requested?: boolean
+          closure_requested_at?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -151,6 +157,9 @@ export type Database = {
           category_id?: string
           city?: string
           closed_at?: string | null
+          closure_reason?: string | null
+          closure_requested?: boolean
+          closure_requested_at?: string | null
           cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -604,6 +613,10 @@ export type Database = {
       }
       recompute_disaster_raised: {
         Args: { _disaster_id: string }
+        Returns: undefined
+      }
+      request_campaign_closure: {
+        Args: { _disaster_id: string; _reason: string }
         Returns: undefined
       }
     }
