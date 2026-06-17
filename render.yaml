@@ -1,14 +1,1 @@
-services:
-  - type: web
-    name: sagip-ph
-    runtime: node
-    buildCommand: npm ci && npm run build
-    startCommand: npm run preview
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NODE_VERSION
-        value: 22
-    routes:
-      - type: http
-        path: /
+
