@@ -239,6 +239,9 @@ function AdminSignup() {
                 <Field label="Birth date" error={errors.birthDate?.message}>
                   <Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} />
                 </Field>
+                <Field label="Age">
+                  <Input value={computedAge !== null && computedAge >= 0 ? String(computedAge) : ""} readOnly disabled placeholder="—" />
+                </Field>
                 <Field label="Gender" error={errors.gender?.message}>
                   <Select value={gender ?? ""} onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -250,9 +253,6 @@ function AdminSignup() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Mobile number" error={errors.mobile?.message}>
-                  <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
-                </Field>
               </div>
               {computedAge !== null && computedAge > 120 && (
                 <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -260,9 +260,14 @@ function AdminSignup() {
                   <span>The age you entered exceeds 120 years. Please verify your birth date — registration is limited to ages 18–120.</span>
                 </div>
               )}
-              <Field label="Email address" error={errors.email?.message}>
-                <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
-              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Mobile number" error={errors.mobile?.message}>
+                  <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
+                </Field>
+                <Field label="Email address" error={errors.email?.message}>
+                  <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
+                </Field>
+              </div>
               <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Province" error={errors.province?.message}>
