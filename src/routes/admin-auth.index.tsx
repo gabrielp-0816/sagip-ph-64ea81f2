@@ -34,7 +34,11 @@ function AdminSignIn() {
 
   // Idempotently ensure the built-in Super Admin (admin@sagip.local / admin123) exists on first load.
   const ensure = useServerFn(ensureSuperAdmin);
-  useEffect(() => { ensure().catch(() => undefined); }, [ensure]);
+  useEffect(() => {
+    ensure().catch((err) => {
+      console.error("ensureSuperAdmin failed:", err);
+    });
+  }, [ensure]);
 
   const onSubmit = async (vals: FormVals) => {
     setLoading(true);

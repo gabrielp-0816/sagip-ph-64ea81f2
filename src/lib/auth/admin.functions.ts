@@ -113,11 +113,17 @@ export const signUpAdmin = createServerFn({ method: "POST" })
       throw new Error(profErr.message);
     }
 
-    // 6. Replace the auto-assigned 'citizen' role with the assigned admin/super_admin role.
+    // 6. Replace the auto-assigned 'citizen' role with the assigned admin/super_admin role(s).
     await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+    const rolesToInsert = assignedRole === "super_admin"
+      ? [
+          { user_id: userId, role: "admin" as const },
+          { user_id: userId, role: "super_admin" as const },
+        ]
+      : [{ user_id: userId, role: "admin" as const }];
     const { error: roleErr } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: userId, role: assignedRole });
+      .insert(rolesToInsert);
     if (roleErr) {
       await supabaseAdmin.storage.from("verification-ids").remove([path]);
       await supabaseAdmin.auth.admin.deleteUser(userId);
