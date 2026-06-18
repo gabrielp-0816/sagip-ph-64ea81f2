@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/sagip/PasswordInput";
@@ -44,11 +43,16 @@ function SignInPage() {
 
   const onGoogle = async () => {
     setGoogleLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/dashboard" });
-    if (result.error) { setGoogleLoading(false); toast.error("Google sign-in failed"); return; }
-    if (result.redirected) return;
-    await router.invalidate();
-    navigate({ to: "/dashboard" });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/dashboard",
+      },
+    });
+    if (error) {
+      setGoogleLoading(false);
+      toast.error("Google sign-in failed: " + error.message);
+    }
   };
 
   return (
@@ -97,7 +101,7 @@ function SignInPage() {
           </div>
 
           <Button type="button" variant="outline" className="w-full" size="lg" onClick={onGoogle} disabled={googleLoading}>
-            {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} Continue with Google
+            {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} Sign in with Google
           </Button>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
