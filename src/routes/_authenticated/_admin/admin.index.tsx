@@ -237,53 +237,6 @@ function AdminOverview() {
       </section>
 
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
-        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border p-5">
-            <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
-            <Button variant="ghost" size="sm" asChild><Link to="/admin/operations">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
-          </div>
-          <ul className="divide-y divide-border">
-            {(d?.recentReqs ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No requests yet.</li>}
-            {(d?.recentReqs ?? []).map((r: any) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{r.disaster_description}</p>
-                  <p className="text-xs text-muted-foreground">{timeAgo(r.created_at)} · {formatPHP(r.requested_amount)}</p>
-                </div>
-                <StatusBadge status={r.status} />
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border p-5">
-            <div className="flex items-center gap-2">
-              <HandHeart className="h-4 w-4 text-relief" />
-              <h2 className="font-display text-base font-semibold">Recent citizen donations</h2>
-            </div>
-            <Button variant="ghost" size="sm" asChild><Link to="/admin/donations">View all <ArrowRight className="h-3 w-3" /></Link></Button>
-          </div>
-          <ul className="divide-y divide-border">
-            {(d?.recentDonations ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No donations yet.</li>}
-            {(d?.recentDonations ?? []).map((don: any) => {
-              const campaign = don.disasters?.name ?? "General fund";
-              const donor = don.is_anonymous ? "Anonymous" : don.donor_name;
-              return (
-                <li key={don.id} className="flex items-center justify-between gap-3 p-4 text-sm">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{donor}</p>
-                    <p className="truncate text-xs text-muted-foreground">{campaign} · {timeAgo(don.created_at)}</p>
-                  </div>
-                  <span className="shrink-0 text-right font-semibold tabular-nums text-relief">{formatPHP(don.amount)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      </div>
-
       <section className="mt-8 min-w-0 overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border p-5">
           <h2 className="font-display text-base font-semibold">Inactive / closed disaster campaigns</h2>
@@ -350,6 +303,53 @@ function AdminOverview() {
           })}
         </ul>
       </section>
+
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <h2 className="font-display text-base font-semibold">Recent assistance requests</h2>
+            <Button variant="ghost" size="sm" asChild><Link to="/admin/operations">Manage <ArrowRight className="h-3 w-3" /></Link></Button>
+          </div>
+          <ul className="divide-y divide-border">
+            {(d?.recentReqs ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No requests yet.</li>}
+            {(d?.recentReqs ?? []).map((r: any) => (
+              <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{r.disaster_description}</p>
+                  <p className="text-xs text-muted-foreground">{timeAgo(r.created_at)} · {formatPHP(r.requested_amount)}</p>
+                </div>
+                <StatusBadge status={r.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <div className="flex items-center gap-2">
+              <HandHeart className="h-4 w-4 text-relief" />
+              <h2 className="font-display text-base font-semibold">Recent citizen donations</h2>
+            </div>
+            <Button variant="ghost" size="sm" asChild><Link to="/admin/donations">View all <ArrowRight className="h-3 w-3" /></Link></Button>
+          </div>
+          <ul className="divide-y divide-border">
+            {(d?.recentDonations ?? []).length === 0 && <li className="p-8 text-center text-sm text-muted-foreground">No donations yet.</li>}
+            {(d?.recentDonations ?? []).map((don: any) => {
+              const campaign = don.disasters?.name ?? "General fund";
+              const donor = don.is_anonymous ? "Anonymous" : don.donor_name;
+              return (
+                <li key={don.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{donor}</p>
+                    <p className="truncate text-xs text-muted-foreground">{campaign} · {timeAgo(don.created_at)}</p>
+                  </div>
+                  <span className="shrink-0 text-right font-semibold tabular-nums text-relief">{formatPHP(don.amount)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </div>
     </AdminShell>
 
   );
