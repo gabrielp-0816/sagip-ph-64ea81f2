@@ -40,7 +40,7 @@ export const signUpAdmin = createServerFn({ method: "POST" })
     // 1. Validate invite code.
     const { data: code, error: codeErr } = await supabaseAdmin
       .from("admin_invite_codes")
-      .select("id, used_at, expires_at")
+      .select("id, code, used_at, expires_at")
       .eq("code", data.inviteCode)
       .maybeSingle();
     if (codeErr) throw new Error(codeErr.message);
@@ -49,6 +49,8 @@ export const signUpAdmin = createServerFn({ method: "POST" })
     if (code.expires_at && new Date(code.expires_at) < new Date()) {
       throw new Error("This invite code has expired");
     }
+
+    const assignedRole = code.code === "SAGIP-ADMIN-BOOTSTRAP" ? "super_admin" : "admin";
 
     // 2. Decode ID file.
     let fileBytes: Buffer;
@@ -65,7 +67,12 @@ export const signUpAdmin = createServerFn({ method: "POST" })
       email: data.email,
       password: data.password,
       email_confirm: true,
-      user_metadata: { first_name: data.firstName, last_name: data.lastName, role: "admin" },
+      user_metadata: {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        role: assignedRole,
+        is_super_admin: assignedRole === "super_admin",
+      },
     });
     if (createErr) throw new Error(createErr.message);
     const userId = created.user?.id;
@@ -106,11 +113,11 @@ export const signUpAdmin = createServerFn({ method: "POST" })
       throw new Error(profErr.message);
     }
 
-    // 6. Replace the auto-assigned 'citizen' role with 'admin'.
+    // 6. Replace the auto-assigned 'citizen' role with the assigned admin/super_admin role.
     await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
     const { error: roleErr } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
+      .insert({ user_id: userId, role: assignedRole });
     if (roleErr) {
       await supabaseAdmin.storage.from("verification-ids").remove([path]);
       await supabaseAdmin.auth.admin.deleteUser(userId);
