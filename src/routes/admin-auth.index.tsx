@@ -30,7 +30,6 @@ function AdminSignIn() {
   const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "admin@sagip.local", password: "admin123" }
   });
 
   // Idempotently ensure the built-in Super Admin (admin@sagip.local / admin123) exists on first load.
