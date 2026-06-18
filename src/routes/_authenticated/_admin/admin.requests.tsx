@@ -55,14 +55,14 @@ function ManageRequests() {
   const notify = async (userId: string, title: string, body: string, priority: "low" | "normal" | "high" | "critical" = "normal") => {
     await supabase.from("notifications").insert({ user_id: userId, title, body, priority, link: "/requests" });
   };
-
-  const setStatus = async (r: any, status: string, notes?: string) => {
+  const setStatus = async (r: any, status: string, notes?: string, andRelease = false) => {
     const { data: u } = await supabase.auth.getUser();
     let linkedDisasterId: string | null = r.disaster_id ?? null;
+    const isApproved = status === "approved";
 
     // On approval: if the request isn't already tied to a disaster campaign,
     // promote it into an active campaign so all citizens can see and donate.
-    if (status === "approved" && !linkedDisasterId && r.category_id) {
+    if (isApproved && !linkedDisasterId && r.category_id) {
       const campaignName = `${r.disaster_categories?.name ?? "Disaster"} relief — ${r.barangay}, ${r.city}`.slice(0, 120);
       const { data: created, error: dErr } = await supabase
         .from("disasters")
@@ -96,6 +96,11 @@ function ManageRequests() {
         reviewed_by: u.user?.id ?? null,
         reviewed_at: new Date().toISOString(),
         ...(linkedDisasterId && !r.disaster_id ? { disaster_id: linkedDisasterId } : {}),
+        ...(isApproved ? {
+          verification_status: "verified",
+          verified_by: u.user?.id ?? null,
+          verified_at: new Date().toISOString(),
+        } : {}),
       })
       .eq("id", r.id);
     if (error) return toast.error(error.message);
@@ -111,13 +116,36 @@ function ManageRequests() {
     toast.success(`Request marked ${status}`);
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
     qc.invalidateQueries({ queryKey: ["admin-disasters"] });
-    setViewing(null);
+    
+    if (andRelease && isApproved) {
+      setReleaseFor({
+        ...r,
+        status: "approved",
+        disaster_id: linkedDisasterId,
+      });
+      setReleaseForm({ amount: String(r.requested_amount ?? ""), allocation_id: "", reference_number: "", notes: "" });
+      setReleaseProof(null);
+      setViewing(null);
+    } else {
+      setViewing(null);
+    }
   };
 
   const release = async () => {
     if (!releaseFor) return;
     const amt = Number(releaseForm.amount);
     if (Number.isNaN(amt) || amt <= 0) return toast.error("Enter an amount greater than zero");
+
+    if (releaseForm.allocation_id) {
+      const alloc = (allocs.data ?? []).find((a) => a.id === releaseForm.allocation_id);
+      if (alloc) {
+        const avail = Number(alloc.allocated_amount) - Number(alloc.released_amount);
+        if (amt > avail) {
+          return toast.error(`Insufficient funds in selected allocation. Only ${formatPHP(avail)} available.`);
+        }
+      }
+    }
+
     if (!releaseProof) return toast.error("Upload a proof of release (receipt, signed acknowledgment, or supporting document)");
 
     const { data: u } = await supabase.auth.getUser();
@@ -263,12 +291,16 @@ function ManageRequests() {
                 {viewing.status === "pending" && <Button variant="outline" onClick={() => setStatus(viewing, "under_review")}>Mark under review</Button>}
                 {viewing.status !== "rejected" && viewing.status !== "released" && <Button variant="destructive" onClick={() => setStatus(viewing, "rejected", viewing.reviewer_notes)}><X className="h-4 w-4" /> Reject</Button>}
                 {viewing.status !== "approved" && viewing.status !== "released" && (
-                  <Button
-                    variant="relief"
-                    disabled={viewing.verification_status !== "verified"}
-                    title={viewing.verification_status !== "verified" ? "Verify the disaster first" : undefined}
-                    onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes)}
-                  ><Check className="h-4 w-4" /> Approve</Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes, false)}
+                    ><Check className="mr-1 h-4 w-4 text-relief" /> Approve & Close</Button>
+                    <Button
+                      variant="relief"
+                      onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes, true)}
+                    ><Send className="mr-1 h-4 w-4" /> Approve & Release</Button>
+                  </>
                 )}
                 {viewing.status === "approved" && <Button onClick={() => { setReleaseFor(viewing); setReleaseForm({ amount: String(viewing.requested_amount ?? ""), allocation_id: "", reference_number: "", notes: "" }); setReleaseProof(null); setViewing(null); }}><Send className="h-4 w-4" /> Release funds</Button>}
               </>

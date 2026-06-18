@@ -27,7 +27,6 @@ import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authent
 import { Route as AuthenticatedRequestsRouteImport } from './routes/_authenticated/requests'
 import { Route as AuthenticatedRequestRouteImport } from './routes/_authenticated/request'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
-import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedDonateRouteImport } from './routes/_authenticated/donate'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
@@ -131,12 +130,6 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedNotificationsRoute =
-  AuthenticatedNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedDonateRoute = AuthenticatedDonateRouteImport.update({
   id: '/donate',
   path: '/donate',
@@ -217,7 +210,6 @@ export interface FileRoutesByFullPath {
   '/transparency': typeof TransparencyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/donate': typeof AuthenticatedDonateRoute
-  '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/request': typeof AuthenticatedRequestRoute
   '/requests': typeof AuthenticatedRequestsRoute
@@ -246,7 +238,6 @@ export interface FileRoutesByTo {
   '/transparency': typeof TransparencyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/donate': typeof AuthenticatedDonateRoute
-  '/notifications': typeof AuthenticatedNotificationsRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/request': typeof AuthenticatedRequestRoute
   '/requests': typeof AuthenticatedRequestsRoute
@@ -280,7 +271,6 @@ export interface FileRoutesById {
   '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/donate': typeof AuthenticatedDonateRoute
-  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/request': typeof AuthenticatedRequestRoute
   '/_authenticated/requests': typeof AuthenticatedRequestsRoute
@@ -313,7 +303,6 @@ export interface FileRouteTypes {
     | '/transparency'
     | '/dashboard'
     | '/donate'
-    | '/notifications'
     | '/profile'
     | '/request'
     | '/requests'
@@ -342,7 +331,6 @@ export interface FileRouteTypes {
     | '/transparency'
     | '/dashboard'
     | '/donate'
-    | '/notifications'
     | '/profile'
     | '/request'
     | '/requests'
@@ -375,7 +363,6 @@ export interface FileRouteTypes {
     | '/_authenticated/_admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/donate'
-    | '/_authenticated/notifications'
     | '/_authenticated/profile'
     | '/_authenticated/request'
     | '/_authenticated/requests'
@@ -536,13 +523,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/notifications': {
-      id: '/_authenticated/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/donate': {
       id: '/_authenticated/donate'
       path: '/donate'
@@ -669,7 +649,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDonateRoute: typeof AuthenticatedDonateRoute
-  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedRequestRoute: typeof AuthenticatedRequestRoute
   AuthenticatedRequestsRoute: typeof AuthenticatedRequestsRoute
@@ -680,7 +659,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDonateRoute: AuthenticatedDonateRoute,
-  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedRequestRoute: AuthenticatedRequestRoute,
   AuthenticatedRequestsRoute: AuthenticatedRequestsRoute,

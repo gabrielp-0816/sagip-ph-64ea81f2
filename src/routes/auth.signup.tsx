@@ -124,11 +124,23 @@ function SignupPage() {
     if (!ok) return;
     if (step === 1 && !idFile) { toast.error("Please upload your government-issued ID"); return; }
     if (step === 1 && idFile && idFile.size > 5 * 1024 * 1024) { toast.error("ID file must be 5MB or smaller"); return; }
+    if (step === 2) {
+      const password = watch("password");
+      const confirm = watch("confirm");
+      if (password !== confirm) {
+        toast.error("Passwords do not match");
+        return;
+      }
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
   const onSubmit = async (vals: FormVals) => {
+    if (vals.password !== vals.confirm) {
+      toast.error("Passwords do not match");
+      return;
+    }
     if (!idFile) { toast.error("Please upload your government-issued ID"); setStep(1); return; }
     if (idFile.size > 5 * 1024 * 1024) { toast.error("ID file must be 5MB or smaller"); return; }
     setLoading(true);

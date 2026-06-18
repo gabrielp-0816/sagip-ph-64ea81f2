@@ -70,6 +70,35 @@ function Dashboard() {
         supabase.from("fund_requests").select("id,requester_id,disaster_description,status,requested_amount,created_at").eq("requester_id", uid).order("created_at", { ascending: false }).limit(5),
       ]);
 
+      const rawDisasters = disasters.data ?? [];
+      const rawInactive = inactiveDisasters.data ?? [];
+
+      const creatorIds = Array.from(
+        new Set(
+          [...rawDisasters.map((d: any) => d.created_by), ...rawInactive.map((d: any) => d.created_by)].filter(Boolean)
+        )
+      );
+
+      let profilesById: Record<string, { first_name: string; last_name: string }> = {};
+      if (creatorIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id,first_name,last_name")
+          .in("id", creatorIds);
+        if (profs) {
+          profilesById = Object.fromEntries(profs.map((p: any) => [p.id, p]));
+        }
+      }
+
+      const activeMapped = rawDisasters.map((d: any) => ({
+        ...d,
+        creator_profile: profilesById[d.created_by] || null,
+      }));
+      const inactiveMapped = rawInactive.map((d: any) => ({
+        ...d,
+        creator_profile: profilesById[d.created_by] || null,
+      }));
+
       const totalD = (donations.data ?? []).reduce((s, d) => s + Number(d.amount), 0);
       const totalA = (allocations.data ?? []).reduce((s, a) => s + Number(a.allocated_amount), 0);
       const totalR = (allocations.data ?? []).reduce((s, a) => s + Number(a.released_amount), 0);
@@ -80,9 +109,9 @@ function Dashboard() {
       }
       const pending = (requests.data ?? []).filter((r) => r.status === "pending" || r.status === "under_review").length;
       // Exclude campaigns the current user created — they shouldn't donate to their own.
-      const visibleDisasters = (disasters.data ?? []).filter((d: any) => d.created_by !== uid);
-      const myCampaigns = (disasters.data ?? []).filter((d: any) => d.created_by === uid);
-      const visibleInactive = (inactiveDisasters.data ?? []).filter((d: any) => d.created_by !== uid).slice(0, 5);
+      const visibleDisasters = activeMapped.filter((d: any) => d.created_by !== uid);
+      const myCampaigns = activeMapped.filter((d: any) => d.created_by === uid);
+      const visibleInactive = inactiveMapped.filter((d: any) => d.created_by !== uid).slice(0, 5);
       return {
         totalDonations: totalD,
         availableFunds: Math.max(0, totalA - totalR),
@@ -328,7 +357,6 @@ function ActiveCampaignsSection({
   const [name, setName] = useState("");
   const [severity, setSeverity] = useState<string>("all");
   const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
   const [sort, setSort] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc" | "funded_desc">("date_desc");
 
   const severityOptions = useMemo(
@@ -345,7 +373,6 @@ function ActiveCampaignsSection({
         if (!ref) return true;
         const t = new Date(ref).getTime();
         if (from && t < new Date(from).getTime()) return false;
-        if (to && t > new Date(to).getTime() + 86_400_000 - 1) return false;
         return true;
       })
       .sort((a, b) => {
@@ -360,9 +387,9 @@ function ActiveCampaignsSection({
         const bv = new Date(b.occurred_at ?? b.created_at).getTime();
         return sort === "date_asc" ? av - bv : bv - av;
       });
-  }, [disasters, severity, name, from, to, sort]);
+  }, [disasters, severity, name, from, sort]);
 
-  const reset = () => { setName(""); setSeverity("all"); setFrom(""); setTo(""); setSort("date_desc"); };
+  const reset = () => { setName(""); setSeverity("all"); setFrom(""); setSort("date_desc"); };
   const visible = filtered.slice(0, 5);
 
   return (
@@ -375,7 +402,7 @@ function ActiveCampaignsSection({
       </div>
       <div className="border-b border-border bg-muted/30 p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative">
+          <div className="relative lg:col-span-2">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Campaign name" value={name} onChange={(e) => setName(e.target.value)} className="h-9 pl-8" />
           </div>
@@ -388,8 +415,7 @@ function ActiveCampaignsSection({
               ))}
             </SelectContent>
           </Select>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" aria-label="From date" />
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" aria-label="To date" />
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" aria-label="Date" />
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
           <Select value={sort} onValueChange={(v) => setSort(v as any)}>
@@ -424,6 +450,9 @@ function ActiveCampaignsSection({
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{d.disaster_categories?.name}</p>
                 <p className="mt-0.5 font-display text-lg font-semibold">{d.name}</p>
                 <p className="text-sm text-muted-foreground">{d.city} · {d.affected_families.toLocaleString()} families affected</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Requested by <span className="font-semibold text-foreground">{d.creator_profile ? `${d.creator_profile.first_name} ${d.creator_profile.last_name}` : "Citizen"}</span> · {formatDate(d.created_at)}
+                </p>
                 <div className="mt-3 max-w-md">
                   <div className="flex items-baseline justify-between text-xs">
                     <span className="text-muted-foreground">Funding</span>
@@ -731,7 +760,7 @@ function RequestsDialog({ open, onOpenChange, uid }: { open: boolean; onOpenChan
 function KpiCard({ label, value, icon: Icon, accent }: { label: string; value: string; icon: any; accent?: "relief" | "gold" | "warning" }) {
   const bar = accent === "relief" ? "bg-relief" : accent === "gold" ? "bg-gold" : accent === "warning" ? "bg-warning" : "bg-primary";
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5">
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md shadow-sm">
       <div className={`absolute left-0 top-0 h-full w-1 ${bar}`} />
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>

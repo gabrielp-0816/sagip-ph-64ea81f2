@@ -19,8 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, HandHeart, ShieldCheck, Receipt, Upload, CheckCircle2 } from "lucide-react";
+import { Loader2, HandHeart, ShieldCheck, Receipt, Upload, CheckCircle2, QrCode } from "lucide-react";
 import { formatPHP } from "@/lib/format";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import qrCodeImage from "@/assets/qr-code.png";
 
 const schema = z.object({
   amount: z.coerce
@@ -41,7 +43,7 @@ const PROOF_MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 export const Route = createFileRoute("/_authenticated/donate")({
   head: () => ({ meta: [{ title: "Donate — SAGIP" }] }),
-  validateSearch: (s: Record<string, unknown>) => ({ disaster: typeof s.disaster === "string" ? s.disaster : undefined }),
+  validateSearch: (s: Record<string, unknown>): { disaster?: string } => ({ disaster: typeof s.disaster === "string" ? s.disaster : undefined }),
   component: DonatePage,
 });
 
@@ -192,10 +194,33 @@ function DonatePage() {
                 <Input id="ref" placeholder="e.g. GC-2026-009124" {...register("reference_number")} className="mt-1.5" />
               </div>
             </div>
-            <div className="mt-4 rounded-lg border border-dashed border-border bg-paper p-4 text-xs text-muted-foreground">
-              <p className="font-semibold text-ink">Remittance details</p>
-              <p className="mt-1">Account name: <span className="font-medium text-ink">SAGIP DRRM Trust Fund</span></p>
-              <p>Landbank account: <span className="font-medium text-ink">1234-5678-90</span> · GCash: <span className="font-medium text-ink">0917-123-4567</span></p>
+            <div className="mt-4 rounded-lg border border-dashed border-border bg-paper p-4 text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="font-semibold text-ink">Remittance details</p>
+                <p className="mt-1">Account name: <span className="font-medium text-ink">SAGIP DRRM Trust Fund</span></p>
+                <p>Landbank account: <span className="font-medium text-ink">1234-5678-90</span> · GCash: <span className="font-medium text-ink">0917-123-4567</span></p>
+              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 flex items-center gap-1.5">
+                    <QrCode className="h-4 w-4" /> Show QR Code
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md text-center">
+                  <DialogHeader>
+                    <DialogTitle className="text-center">SAGIP DRRM Fund QR Code</DialogTitle>
+                  </DialogHeader>
+                  <div className="flex flex-col items-center justify-center p-4">
+                    <img src={qrCodeImage} alt="SAGIP Donation QR Code" className="w-64 h-64 object-contain rounded-lg border bg-white p-2" />
+                    <p className="mt-4 text-xs text-muted-foreground">Scan this QR code using your GCash, Maya, or bank app to transfer your donation.</p>
+                    <Button variant="link" size="sm" asChild className="mt-2 text-xs">
+                      <a href={qrCodeImage} target="_blank" rel="noopener noreferrer">
+                        Open in new tab
+                      </a>
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="mt-4">

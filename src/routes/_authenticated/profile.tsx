@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DashShell } from "@/components/sagip/DashShell";
+import { AdminShell } from "@/components/sagip/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,16 +40,32 @@ function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profileData, isLoading } = useQuery({
     queryKey: ["my-profile"],
-    queryFn: async () =>
-      (
-        await supabase
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return null;
+      const [profileResult, rolesResult] = await Promise.all([
+        supabase
           .from("profiles")
           .select("first_name,middle_name,last_name,birth_date,gender,mobile_number,email,residential_address,city,province,id_type,id_number,is_verified,is_suspended")
-          .maybeSingle()
-      ).data,
+          .eq("id", u.user.id)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", u.user.id)
+          .in("role", ["admin", "super_admin"]),
+      ]);
+      return {
+        profile: profileResult.data,
+        isAdmin: !!rolesResult.data && rolesResult.data.length > 0,
+      };
+    },
   });
+
+  const profile = profileData?.profile;
+  const isAdmin = profileData?.isAdmin;
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema) });
 
@@ -86,6 +103,7 @@ function ProfilePage() {
     toast.success("Profile updated");
     queryClient.invalidateQueries({ queryKey: ["my-profile"] });
     queryClient.invalidateQueries({ queryKey: ["shell-meta"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-shell-meta"] });
   };
 
   const pwForm = useForm<z.infer<typeof passwordSchema>>({ resolver: zodResolver(passwordSchema) });
@@ -98,12 +116,14 @@ function ProfilePage() {
     pwForm.reset();
   };
 
+  const Shell = isAdmin ? AdminShell : DashShell;
+
   if (isLoading || !profile) {
-    return <DashShell title="My profile"><p className="text-sm text-muted-foreground">Loading…</p></DashShell>;
+    return <Shell title="My profile"><p className="text-sm text-muted-foreground">Loading…</p></Shell>;
   }
 
   return (
-    <DashShell title="My profile" subtitle="Keep your contact details up to date so the DRRM Office can reach you.">
+    <Shell title="My profile" subtitle="Keep your contact details up to date so the DRRM Office can reach you.">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <form onSubmit={handleSubmit(onSave)} className="space-y-6 rounded-xl border border-border bg-card p-6 sm:p-8">
           <section>
@@ -206,7 +226,7 @@ function ProfilePage() {
           </form>
         </aside>
       </div>
-    </DashShell>
+    </Shell>
   );
 }
 

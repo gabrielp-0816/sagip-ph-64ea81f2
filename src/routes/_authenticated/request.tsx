@@ -42,7 +42,7 @@ const ALLOWED = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 
 export const Route = createFileRoute("/_authenticated/request")({
   head: () => ({ meta: [{ title: "Request assistance — SAGIP" }] }),
-  validateSearch: (s: Record<string, unknown>) => ({ disaster: typeof s.disaster === "string" ? s.disaster : undefined }),
+  validateSearch: (s: Record<string, unknown>): { disaster?: string } => ({ disaster: typeof s.disaster === "string" ? s.disaster : undefined }),
   component: RequestPage,
 });
 

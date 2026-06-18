@@ -53,9 +53,12 @@ function Operations() {
   const [allocForm, setAllocForm] = useState({ label: "", allocated_amount: "", notes: "" });
 
   const [reviewing, setReviewing] = useState<any | null>(null);
+  const [linkToCampaignId, setLinkToCampaignId] = useState<string>("_new");
   const [releaseFor, setReleaseFor] = useState<any | null>(null);
   const [releaseForm, setReleaseForm] = useState({ amount: "", allocation_id: "", reference_number: "", notes: "" });
   const [releaseProof, setReleaseProof] = useState<File | null>(null);
+  const [createAllocationInline, setCreateAllocationInline] = useState(false);
+  const [inlineAllocLabel, setInlineAllocLabel] = useState("");
 
   const cats = useQuery({
     queryKey: ["categories"],
@@ -98,6 +101,20 @@ function Operations() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
+
+  useEffect(() => {
+    if (reviewing) {
+      setLinkToCampaignId(reviewing.disaster_id || "_new");
+    }
+  }, [reviewing]);
+
+  useEffect(() => {
+    if (releaseFor) {
+      const name = `${releaseFor.profiles?.first_name ?? ""} ${releaseFor.profiles?.last_name ?? ""}`.trim();
+      setInlineAllocLabel(name ? `${name} Relief` : "Aid Request Relief");
+      setCreateAllocationInline(false);
+    }
+  }, [releaseFor]);
 
   const filteredCampaigns = useMemo(() => {
     let list = campaigns.data ?? [];
@@ -197,31 +214,43 @@ function Operations() {
   };
 
   // ---------- Request status ----------
-  const setRequestStatus = async (r: any, status: string, notes?: string) => {
+  const setRequestStatus = async (r: any, status: string, notes?: string, andRelease = false) => {
     const { data: u } = await supabase.auth.getUser();
     let linkedDisasterId: string | null = r.disaster_id ?? null;
-    if (status === "approved" && !linkedDisasterId && r.category_id) {
-      const campaignName = `${r.disaster_categories?.name ?? "Disaster"} relief — ${r.barangay}, ${r.city}`.slice(0, 120);
-      const { data: created, error: dErr } = await supabase.from("disasters").insert({
-        name: campaignName, category_id: r.category_id, description: r.disaster_description,
-        location: r.exact_location, city: r.city, barangay: r.barangay,
-        severity: "moderate", status: "active",
-        affected_individuals: r.affected_individuals ?? 0,
-        affected_families: Math.max(1, Math.ceil((r.affected_individuals ?? 1) / 5)),
-        required_funding: r.requested_amount ?? 0,
-        occurred_at: r.created_at ?? new Date().toISOString(),
-        created_by: r.requester_id ?? u.user?.id ?? null,
-      }).select("id").single();
-      if (dErr) return toast.error(`Could not create campaign: ${dErr.message}`);
-      linkedDisasterId = created.id;
-      await logAudit("disaster.create_from_request", "disasters", created.id, { request_id: r.id });
+    const isApproved = status === "approved";
+
+    if (isApproved && !linkedDisasterId && r.category_id) {
+      if (linkToCampaignId && linkToCampaignId !== "_new") {
+        linkedDisasterId = linkToCampaignId;
+      } else {
+        const campaignName = `${r.disaster_categories?.name ?? "Disaster"} relief — ${r.barangay}, ${r.city}`.slice(0, 120);
+        const { data: created, error: dErr } = await supabase.from("disasters").insert({
+          name: campaignName, category_id: r.category_id, description: r.disaster_description,
+          location: r.exact_location, city: r.city, barangay: r.barangay,
+          severity: "moderate", status: "active",
+          affected_individuals: r.affected_individuals ?? 0,
+          affected_families: Math.max(1, Math.ceil((r.affected_individuals ?? 1) / 5)),
+          required_funding: r.requested_amount ?? 0,
+          occurred_at: r.created_at ?? new Date().toISOString(),
+          created_by: r.requester_id ?? u.user?.id ?? null,
+        }).select("id").single();
+        if (dErr) return toast.error(`Could not create campaign: ${dErr.message}`);
+        linkedDisasterId = created.id;
+        await logAudit("disaster.create_from_request", "disasters", created.id, { request_id: r.id });
+      }
     }
+
     const { error } = await supabase.from("fund_requests").update({
       status: status as any,
       reviewer_notes: notes ?? r.reviewer_notes,
       reviewed_by: u.user?.id ?? null,
       reviewed_at: new Date().toISOString(),
       ...(linkedDisasterId && !r.disaster_id ? { disaster_id: linkedDisasterId } : {}),
+      ...(isApproved ? {
+        verification_status: "verified",
+        verified_by: u.user?.id ?? null,
+        verified_at: new Date().toISOString(),
+      } : {}),
     }).eq("id", r.id);
     if (error) return toast.error(error.message);
     await logAudit(`request.${status}`, "fund_requests", r.id, { notes });
@@ -236,7 +265,19 @@ function Operations() {
     toast.success(`Request marked ${status.replace("_", " ")}`);
     qc.invalidateQueries({ queryKey: ["ops-requests"] });
     qc.invalidateQueries({ queryKey: ["ops-disasters"] });
-    setReviewing(null);
+
+    if (andRelease && isApproved) {
+      setReleaseFor({
+        ...r,
+        status: "approved",
+        disaster_id: linkedDisasterId,
+      });
+      setReleaseForm({ amount: String(r.requested_amount ?? ""), allocation_id: "", reference_number: "", notes: "" });
+      setReleaseProof(null);
+      setReviewing(null);
+    } else {
+      setReviewing(null);
+    }
   };
 
   const verifyRequest = async (r: any) => {
@@ -258,6 +299,21 @@ function Operations() {
     if (!releaseFor) return;
     const amt = Number(releaseForm.amount);
     if (Number.isNaN(amt) || amt <= 0) return toast.error("Enter an amount greater than zero");
+
+    if (createAllocationInline && !inlineAllocLabel.trim()) {
+      return toast.error("Provide a label for the new allocation");
+    }
+
+    if (!createAllocationInline && releaseForm.allocation_id) {
+      const alloc = (allocs.data ?? []).find((a) => a.id === releaseForm.allocation_id);
+      if (alloc) {
+        const avail = Number(alloc.allocated_amount) - Number(alloc.released_amount);
+        if (amt > avail) {
+          return toast.error(`Insufficient funds in selected allocation. Only ${formatPHP(avail)} available.`);
+        }
+      }
+    }
+
     if (!releaseProof) return toast.error("Upload a proof of release");
 
     const { data: u } = await supabase.auth.getUser();
@@ -267,9 +323,34 @@ function Operations() {
     const up = await supabase.storage.from("request-documents").upload(proofPath, releaseProof, { contentType: releaseProof.type });
     if (up.error) return toast.error(`Proof upload failed: ${up.error.message}`);
 
+    let targetAllocationId: string | null = null;
+    if (createAllocationInline) {
+      const { data: newAlloc, error: allocErr } = await supabase
+        .from("fund_allocations")
+        .insert({
+          label: inlineAllocLabel.trim(),
+          category_id: releaseFor.category_id ?? null,
+          disaster_id: releaseFor.disaster_id,
+          allocated_amount: amt,
+          notes: `Automatically created during release for request from ${releaseFor.profiles?.first_name ?? ""} ${releaseFor.profiles?.last_name ?? ""}`.trim(),
+          created_by: uid,
+        })
+        .select("id")
+        .single();
+      if (allocErr) return toast.error(`Failed to create allocation: ${allocErr.message}`);
+      targetAllocationId = newAlloc.id;
+      await logAudit("allocation.create", "fund_allocations", targetAllocationId, {
+        label: inlineAllocLabel.trim(),
+        allocated_amount: amt,
+        disaster_id: releaseFor.disaster_id,
+      });
+    } else {
+      targetAllocationId = releaseForm.allocation_id || null;
+    }
+
     const { error: insErr } = await supabase.from("fund_releases").insert({
       request_id: releaseFor.id,
-      allocation_id: releaseForm.allocation_id || null,
+      allocation_id: targetAllocationId,
       amount: amt,
       reference_number: releaseForm.reference_number || null,
       notes: releaseForm.notes || null,
@@ -277,12 +358,18 @@ function Operations() {
       proof_url: up.data.path,
     });
     if (insErr) return toast.error(insErr.message);
-    if (releaseForm.allocation_id) {
-      const alloc = (allocs.data ?? []).find((a) => a.id === releaseForm.allocation_id);
-      if (alloc) {
-        await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
+
+    if (targetAllocationId) {
+      if (createAllocationInline) {
+        await supabase.from("fund_allocations").update({ released_amount: amt }).eq("id", targetAllocationId);
+      } else {
+        const alloc = (allocs.data ?? []).find((a) => a.id === targetAllocationId);
+        if (alloc) {
+          await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
+        }
       }
     }
+
     // Decide whether the request is now fully fulfilled
     const { data: existingReleases } = await supabase.from("fund_releases").select("amount").eq("request_id", releaseFor.id);
     const totalReleased = (existingReleases ?? []).reduce((s: number, x: any) => s + Number(x.amount), 0);
@@ -587,6 +674,27 @@ function Operations() {
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Reviewer notes</Label>
                 <Textarea className="mt-1" rows={3} defaultValue={reviewing.reviewer_notes ?? ""} onBlur={(e) => setReviewing({ ...reviewing, reviewer_notes: e.target.value })} />
               </div>
+              {!reviewing.disaster_id && reviewing.status !== "released" && reviewing.status !== "approved" && (
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Campaign Association</Label>
+                  <Select value={linkToCampaignId} onValueChange={setLinkToCampaignId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select campaign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_new">Create new disaster campaign (Default)</SelectItem>
+                      {(campaigns.data ?? []).filter((d: any) => d.status !== "closed").map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          Link to: {c.name} ({c.city})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Link this request to an existing active campaign, or select default to create a new campaign automatically.
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2">
@@ -608,12 +716,16 @@ function Operations() {
                 {reviewing.status === "pending" && <Button variant="outline" onClick={() => setRequestStatus(reviewing, "under_review")}>Mark under review</Button>}
                 {reviewing.status !== "rejected" && <Button variant="destructive" onClick={() => setRequestStatus(reviewing, "rejected", reviewing.reviewer_notes)}><X className="h-4 w-4" /> Reject</Button>}
                 {reviewing.status !== "approved" && (
-                  <Button
-                    variant="relief"
-                    disabled={reviewing.verification_status !== "verified"}
-                    title={reviewing.verification_status !== "verified" ? "Verify the disaster first" : undefined}
-                    onClick={() => setRequestStatus(reviewing, "approved", reviewing.reviewer_notes)}
-                  ><Check className="h-4 w-4" /> Approve</Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setRequestStatus(reviewing, "approved", reviewing.reviewer_notes, false)}
+                    ><Check className="mr-1 h-4 w-4 text-relief" /> Approve & Close</Button>
+                    <Button
+                      variant="relief"
+                      onClick={() => setRequestStatus(reviewing, "approved", reviewing.reviewer_notes, true)}
+                    ><Send className="mr-1 h-4 w-4" /> Approve & Release</Button>
+                  </>
                 )}
                 {reviewing.status === "approved" && (
                   <Button onClick={() => {
@@ -657,19 +769,59 @@ function Operations() {
                 </label>
                 <input id="release-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setReleaseProof(e.target.files?.[0] ?? null)} />
               </div>
-              <div>
-                <Label className="text-xs">Charge against allocation</Label>
-                <Select value={releaseForm.allocation_id || "_none"} onValueChange={(v) => setReleaseForm({ ...releaseForm, allocation_id: v === "_none" ? "" : v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">— General fund —</SelectItem>
-                    {allocationsForRelease.map((a: any) => {
-                      const avail = Number(a.allocated_amount) - Number(a.released_amount);
-                      return <SelectItem key={a.id} value={a.id}>{a.label} · {formatPHP(avail)} available</SelectItem>;
-                    })}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[10px] text-muted-foreground">Showing allocations tied to this campaign plus general funds.</p>
+              <div className="rounded-lg border border-border p-3 bg-secondary/20">
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="inline-alloc-checkbox"
+                    type="checkbox"
+                    checked={createAllocationInline}
+                    onChange={(e) => setCreateAllocationInline(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-relief focus:ring-relief"
+                  />
+                  <label htmlFor="inline-alloc-checkbox" className="text-xs font-medium cursor-pointer">
+                    Create a new fund allocation for this release
+                  </label>
+                </div>
+                {createAllocationInline ? (
+                  <div className="mt-3 space-y-3 pl-6 border-l-2 border-relief">
+                    <div>
+                      <Label className="text-xs">Allocation Label *</Label>
+                      <Input
+                        className="mt-1 h-8 text-xs"
+                        value={inlineAllocLabel}
+                        onChange={(e) => setInlineAllocLabel(e.target.value)}
+                        placeholder="e.g. Earthquake Food Packs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Allocation Amount (₱) *</Label>
+                      <Input
+                        className="mt-1 h-8 text-xs bg-muted"
+                        disabled
+                        value={formatPHP(Number(releaseForm.amount) || 0)}
+                        placeholder="0.00"
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Automatically matched to the release amount.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 pl-6">
+                    <Label className="text-xs">Charge against allocation</Label>
+                    <Select value={releaseForm.allocation_id || "_none"} onValueChange={(v) => setReleaseForm({ ...releaseForm, allocation_id: v === "_none" ? "" : v })}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">— General fund —</SelectItem>
+                        {allocationsForRelease.map((a: any) => {
+                          const avail = Math.max(0, Number(a.allocated_amount) - Number(a.released_amount));
+                          return <SelectItem key={a.id} value={a.id}>{a.label} · {formatPHP(avail)} available</SelectItem>;
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Showing allocations tied to this campaign plus general funds.</p>
+                  </div>
+                )}
               </div>
               <div><Label className="text-xs">Reference number</Label><Input className="mt-1" value={releaseForm.reference_number} onChange={(e) => setReleaseForm({ ...releaseForm, reference_number: e.target.value })} placeholder="DV / cheque / transfer #" /></div>
               <div><Label className="text-xs">Notes</Label><Textarea className="mt-1" rows={2} value={releaseForm.notes} onChange={(e) => setReleaseForm({ ...releaseForm, notes: e.target.value })} /></div>

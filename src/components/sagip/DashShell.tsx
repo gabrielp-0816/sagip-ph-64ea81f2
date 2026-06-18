@@ -15,9 +15,33 @@ import {
   ShieldCheck,
   Inbox,
   Receipt,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { timeAgo, formatDateTime } from "@/lib/format";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const ICONS: Record<string, any> = {
+  low: Info,
+  normal: Bell,
+  high: AlertTriangle,
+  critical: ShieldCheck,
+};
+
+const ACCENTS: Record<string, string> = {
+  low: "text-muted-foreground",
+  normal: "text-primary",
+  high: "text-warning-foreground",
+  critical: "text-destructive",
+};
 
 const nav = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -25,7 +49,6 @@ const nav = [
   { to: "/request", label: "Request aid", icon: FileText },
   { to: "/requests", label: "My requests", icon: Inbox },
   { to: "/transactions", label: "Transaction history", icon: Receipt },
-  { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/profile", label: "My profile", icon: User },
 ] as const;
 
@@ -34,6 +57,8 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+
+  const [selectedNotif, setSelectedNotif] = useState<any | null>(null);
 
   const meta = useQuery({
     queryKey: ["shell-meta"],
@@ -47,12 +72,52 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
     },
   });
 
+  const notificationsQuery = useQuery({
+    queryKey: ["shell-notifications"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("id,title,body,link,priority,is_read,created_at")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data ?? [];
+    },
+  });
+
+  const markRead = async (id: string) => {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["shell-meta"] });
+    queryClient.invalidateQueries({ queryKey: ["shell-notifications"] });
+  };
+
+  const handleNotifClick = (n: any) => {
+    setSelectedNotif(n);
+    if (!n.is_read) {
+      queryClient.setQueryData(["shell-notifications"], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((item) => (item.id === n.id ? { ...item, is_read: true } : item));
+      });
+      markRead(n.id);
+    }
+  };
+
+  const markAllRead = async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+    const { error } = await supabase.from("notifications").update({ is_read: true }).eq("user_id", auth.user.id).eq("is_read", false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("All notifications marked as read");
+    queryClient.invalidateQueries({ queryKey: ["shell-meta"] });
+    queryClient.invalidateQueries({ queryKey: ["shell-notifications"] });
+  };
+
   useEffect(() => {
     const ch = supabase
       .channel("shell-notif")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () =>
-        queryClient.invalidateQueries({ queryKey: ["shell-meta"] }),
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["shell-meta"] });
+        queryClient.invalidateQueries({ queryKey: ["shell-notifications"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -94,16 +159,68 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="relative" aria-label="Notifications">
-              <Link to="/notifications">
-                <Bell className="h-4 w-4" />
-                {!!meta.data?.unread && (
-                  <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-                    {meta.data.unread}
-                  </span>
-                )}
-              </Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative text-foreground" aria-label="Notifications">
+                  <Bell className="h-4 w-4" />
+                  {!!meta.data?.unread && (
+                    <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                      {meta.data.unread}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[450px] p-0" align="end">
+                <div className="flex items-center justify-between border-b border-border p-3">
+                  <span className="font-display text-sm font-semibold">Notifications</span>
+                  {!!meta.data?.unread && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-[350px] overflow-y-auto">
+                  {notificationsQuery.isLoading && (
+                    <p className="p-4 text-center text-xs text-muted-foreground">Loading...</p>
+                  )}
+                  {!notificationsQuery.isLoading && (notificationsQuery.data ?? []).length === 0 && (
+                    <div className="flex flex-col items-center gap-2 p-6 text-center text-muted-foreground">
+                      <Bell className="h-6 w-6" />
+                      <p className="text-xs font-semibold">No notifications yet</p>
+                    </div>
+                  )}
+                  {(notificationsQuery.data ?? []).map((n) => {
+                    const Icon = ICONS[n.priority] ?? Bell;
+                    const accent = ACCENTS[n.priority] ?? "text-primary";
+                    return (
+                      <DropdownMenuItem
+                        key={n.id}
+                        onClick={() => handleNotifClick(n)}
+                        className={cn(
+                          "flex items-start gap-3 border-b border-border/50 p-3 text-xs cursor-pointer focus:bg-accent/45",
+                          !n.is_read && "bg-accent/20"
+                        )}
+                      >
+                        <div className={cn("mt-0.5 shrink-0", accent)}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("font-semibold text-ink", !n.is_read && "font-bold")}>{n.title}</p>
+                          {n.body && <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>}
+                          <p className="mt-1 text-[10px] text-muted-foreground">{timeAgo(n.created_at)}</p>
+                        </div>
+                        {!n.is_read && (
+                          <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {meta.data?.isAdmin && (
               <Button variant="outline" size="sm" asChild className="border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground">
                 <Link to="/admin"><ShieldCheck className="h-4 w-4" /> Admin console</Link>
@@ -137,7 +254,7 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
           <nav className="space-y-0.5">
             {nav.map((n) => {
               const Icon = n.icon;
-              const active = pathname === n.to || (n.to !== "/dashboard" && pathname.startsWith(n.to));
+              const active = pathname === n.to || (n.to !== "/dashboard" && (pathname + "/").startsWith(n.to + "/"));
               return (
                 <Link
                   key={n.to}
@@ -151,18 +268,7 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
                   )}
                 >
                   <Icon className="h-4 w-4" /> {n.label}
-                  {n.to === "/notifications" && !!meta.data?.unread && (
-                    <span
-                      className={cn(
-                        "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                        active
-                          ? "bg-primary-foreground/20 text-primary-foreground"
-                          : "bg-destructive text-destructive-foreground",
-                      )}
-                    >
-                      {meta.data.unread}
-                    </span>
-                  )}
+
                 </Link>
               );
             })}
@@ -189,6 +295,55 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
           {children}
         </main>
       </div>
+
+      <Dialog open={!!selectedNotif} onOpenChange={(o) => !o && setSelectedNotif(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              {(() => {
+                if (!selectedNotif) return null;
+                const Icon = ICONS[selectedNotif.priority] ?? Bell;
+                const accent = ACCENTS[selectedNotif.priority] ?? "text-primary";
+                return (
+                  <div className={accent}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                );
+              })()}
+              <DialogTitle>Alert Details</DialogTitle>
+            </div>
+            <DialogDescription>
+              Received {selectedNotif && timeAgo(selectedNotif.created_at)}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedNotif && (
+            <div className="space-y-4 py-3">
+              <div>
+                <h3 className="font-display text-base font-bold text-ink">{selectedNotif.title}</h3>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Timestamp: {formatDateTime(selectedNotif.created_at)}
+                </p>
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{selectedNotif.body || "No details provided."}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="ghost" onClick={() => setSelectedNotif(null)}>Close</Button>
+            {selectedNotif?.link && (
+              <Button variant="relief" onClick={() => {
+                const link = selectedNotif.link;
+                setSelectedNotif(null);
+                navigate({ to: link as any });
+              }}>
+                Go to page
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -87,10 +87,6 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" asChild className="text-paper/80 hover:bg-white/10 hover:text-paper" aria-label="Notifications">
-
-              <Link to="/notifications"><Bell className="h-4 w-4" /></Link>
-            </Button>
             <span className="hidden text-sm font-medium text-paper/90 sm:inline">{name}</span>
             <Button variant="outline" size="sm" onClick={onSignOut} className="border-white/20 bg-transparent text-paper hover:bg-white/10">
               <LogOut className="h-4 w-4" /> Sign out
@@ -152,12 +148,6 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
 }
 
 export async function logAudit(action: string, entityType?: string, entityId?: string, metadata?: Record<string, unknown>) {
-  const { data: u } = await supabase.auth.getUser();
-  await supabase.from("audit_logs").insert({
-    actor_id: u.user?.id ?? null,
-    action,
-    entity_type: entityType ?? null,
-    entity_id: entityId ?? null,
-    metadata: (metadata ?? null) as any,
-  });
+  // Handled automatically by database-level triggers
+  return;
 }

@@ -162,11 +162,23 @@ function AdminSignup() {
       if (!ALLOWED_MIME.includes(idFile.type)) { toast.error("ID must be JPG, PNG, WEBP, or PDF"); return; }
       if (idFile.size > MAX_BYTES) { toast.error("ID must be 5MB or smaller"); return; }
     }
+    if (step === 2) {
+      const password = watch("password");
+      const confirm = watch("confirm");
+      if (password !== confirm) {
+        toast.error("Passwords do not match");
+        return;
+      }
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
   const onSubmit = async (vals: FormVals) => {
+    if (vals.password !== vals.confirm) {
+      toast.error("Passwords do not match");
+      return;
+    }
     if (!idFile) { toast.error("Please upload a government-issued ID"); setStep(1); return; }
     if (!ALLOWED_MIME.includes(idFile.type)) { toast.error("ID must be JPG, PNG, WEBP, or PDF"); return; }
     if (idFile.size > MAX_BYTES) { toast.error("ID must be 5MB or smaller"); return; }
