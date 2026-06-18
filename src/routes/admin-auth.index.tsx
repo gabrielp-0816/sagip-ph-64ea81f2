@@ -48,14 +48,13 @@ function AdminSignIn() {
       toast.error(error?.message ?? "Sign-in failed");
       return;
     }
-    const { data: roleRow } = await supabase
+    const { data: roleRows } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", data.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
+      .in("role", ["admin", "super_admin"]);
     setLoading(false);
-    if (!roleRow) {
+    if (!roleRows || roleRows.length === 0) {
       await supabase.auth.signOut();
       toast.error("This account does not have administrator access.");
       return;
