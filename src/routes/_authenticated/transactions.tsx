@@ -252,11 +252,11 @@ function CitizenTransactions() {
 function SummaryCard({ label, value, icon: Icon, accent }: { label: string; value: string; icon: any; accent?: "relief" | "gold" }) {
   const bar = accent === "relief" ? "bg-relief" : accent === "gold" ? "bg-gold" : "bg-primary";
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md shadow-sm">
-      <div className={`absolute left-0 top-0 h-full w-1 ${bar}`} />
+    <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-border/80">
+      <div className={`absolute left-0 top-0 h-full w-1 ${bar} transition-all duration-300 group-hover:w-1.5`} />
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className="h-4 w-4 text-muted-foreground transition-all duration-300 group-hover:text-foreground group-hover:scale-110" />
       </div>
       <p className="mt-3 font-display text-2xl font-semibold tabular-nums">{value}</p>
     </div>

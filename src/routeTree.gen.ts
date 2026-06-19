@@ -37,7 +37,6 @@ import { Route as AuthenticatedAdminAdminRequestsRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminAdminOperationsRouteImport } from './routes/_authenticated/_admin/admin.operations'
 import { Route as AuthenticatedAdminAdminDonationsRouteImport } from './routes/_authenticated/_admin/admin.donations'
 import { Route as AuthenticatedAdminAdminDisastersRouteImport } from './routes/_authenticated/_admin/admin.disasters'
-import { Route as AuthenticatedAdminAdminAuditRouteImport } from './routes/_authenticated/_admin/admin.audit'
 import { Route as AuthenticatedAdminAdminAllocationsRouteImport } from './routes/_authenticated/_admin/admin.allocations'
 
 const TransparencyRoute = TransparencyRouteImport.update({
@@ -186,12 +185,6 @@ const AuthenticatedAdminAdminDisastersRoute =
     path: '/admin/disasters',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
-const AuthenticatedAdminAdminAuditRoute =
-  AuthenticatedAdminAdminAuditRouteImport.update({
-    id: '/admin/audit',
-    path: '/admin/audit',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
-  } as any)
 const AuthenticatedAdminAdminAllocationsRoute =
   AuthenticatedAdminAdminAllocationsRouteImport.update({
     id: '/admin/allocations',
@@ -220,7 +213,6 @@ export interface FileRoutesByFullPath {
   '/admin-auth/': typeof AdminAuthIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
-  '/admin/audit': typeof AuthenticatedAdminAdminAuditRoute
   '/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
   '/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
   '/admin/operations': typeof AuthenticatedAdminAdminOperationsRoute
@@ -248,7 +240,6 @@ export interface FileRoutesByTo {
   '/admin-auth': typeof AdminAuthIndexRoute
   '/auth': typeof AuthIndexRoute
   '/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
-  '/admin/audit': typeof AuthenticatedAdminAdminAuditRoute
   '/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
   '/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
   '/admin/operations': typeof AuthenticatedAdminAdminOperationsRoute
@@ -281,7 +272,6 @@ export interface FileRoutesById {
   '/admin-auth/': typeof AdminAuthIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/_authenticated/_admin/admin/allocations': typeof AuthenticatedAdminAdminAllocationsRoute
-  '/_authenticated/_admin/admin/audit': typeof AuthenticatedAdminAdminAuditRoute
   '/_authenticated/_admin/admin/disasters': typeof AuthenticatedAdminAdminDisastersRoute
   '/_authenticated/_admin/admin/donations': typeof AuthenticatedAdminAdminDonationsRoute
   '/_authenticated/_admin/admin/operations': typeof AuthenticatedAdminAdminOperationsRoute
@@ -313,7 +303,6 @@ export interface FileRouteTypes {
     | '/admin-auth/'
     | '/auth/'
     | '/admin/allocations'
-    | '/admin/audit'
     | '/admin/disasters'
     | '/admin/donations'
     | '/admin/operations'
@@ -341,7 +330,6 @@ export interface FileRouteTypes {
     | '/admin-auth'
     | '/auth'
     | '/admin/allocations'
-    | '/admin/audit'
     | '/admin/disasters'
     | '/admin/donations'
     | '/admin/operations'
@@ -373,7 +361,6 @@ export interface FileRouteTypes {
     | '/admin-auth/'
     | '/auth/'
     | '/_authenticated/_admin/admin/allocations'
-    | '/_authenticated/_admin/admin/audit'
     | '/_authenticated/_admin/admin/disasters'
     | '/_authenticated/_admin/admin/donations'
     | '/_authenticated/_admin/admin/operations'
@@ -593,13 +580,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAdminDisastersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/_authenticated/_admin/admin/audit': {
-      id: '/_authenticated/_admin/admin/audit'
-      path: '/admin/audit'
-      fullPath: '/admin/audit'
-      preLoaderRoute: typeof AuthenticatedAdminAdminAuditRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
-    }
     '/_authenticated/_admin/admin/allocations': {
       id: '/_authenticated/_admin/admin/allocations'
       path: '/admin/allocations'
@@ -612,7 +592,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAdminAllocationsRoute: typeof AuthenticatedAdminAdminAllocationsRoute
-  AuthenticatedAdminAdminAuditRoute: typeof AuthenticatedAdminAdminAuditRoute
   AuthenticatedAdminAdminDisastersRoute: typeof AuthenticatedAdminAdminDisastersRoute
   AuthenticatedAdminAdminDonationsRoute: typeof AuthenticatedAdminAdminDonationsRoute
   AuthenticatedAdminAdminOperationsRoute: typeof AuthenticatedAdminAdminOperationsRoute
@@ -626,7 +605,6 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
   {
     AuthenticatedAdminAdminAllocationsRoute:
       AuthenticatedAdminAdminAllocationsRoute,
-    AuthenticatedAdminAdminAuditRoute: AuthenticatedAdminAdminAuditRoute,
     AuthenticatedAdminAdminDisastersRoute:
       AuthenticatedAdminAdminDisastersRoute,
     AuthenticatedAdminAdminDonationsRoute:

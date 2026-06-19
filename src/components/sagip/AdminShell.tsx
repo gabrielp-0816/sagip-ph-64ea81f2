@@ -27,7 +27,6 @@ const nav: NavItem[] = [
   { to: "/admin/donations", label: "Donations", icon: HandHeart },
   { to: "/admin/transactions", label: "Transaction history", icon: ArrowLeftRight },
   { to: "/admin/users", label: "Users & roles", icon: Users },
-  { to: "/admin/audit", label: "Audit log", icon: ScrollText, superOnly: true },
   { to: "/profile", label: "My profile", icon: User },
 ];
 
@@ -127,7 +126,7 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
           </nav>
           <div className="mt-8 rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-paper/70">
             <p className="font-display text-sm font-semibold text-paper">Operational note</p>
-            <p className="mt-1">All admin actions are recorded in the audit log. Use the highest scrutiny when releasing funds.</p>
+            <p className="mt-1">Ensure compliance and accuracy for all financial approvals. Use the highest scrutiny when releasing funds.</p>
           </div>
         </aside>
         {open && <button aria-label="Close menu" onClick={() => setOpen(false)} className="fixed inset-0 z-30 bg-black/60 lg:hidden" />}
