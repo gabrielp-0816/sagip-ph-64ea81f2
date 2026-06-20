@@ -41,8 +41,12 @@ export function AdminShell({ children, title, subtitle, actions }: { children: R
   const meta = useQuery({
     queryKey: ["admin-shell-meta"],
     queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return { profile: null, pending: 0 };
+
       const [profile, pending] = await Promise.all([
-        supabase.from("profiles").select("first_name,last_name").maybeSingle(),
+        supabase.from("profiles").select("first_name,last_name").eq("id", uid).maybeSingle(),
         supabase.from("fund_requests").select("id", { count: "exact", head: true }).in("status", ["pending", "under_review"]),
       ]);
       return { profile: profile.data, pending: pending.count ?? 0 };

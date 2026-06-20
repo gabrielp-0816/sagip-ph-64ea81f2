@@ -63,8 +63,12 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
   const meta = useQuery({
     queryKey: ["shell-meta"],
     queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) return { profile: null, unread: 0, isAdmin: false };
+
       const [profile, notif, adminRole] = await Promise.all([
-        supabase.from("profiles").select("first_name,last_name,is_verified,avatar_url").maybeSingle(),
+        supabase.from("profiles").select("first_name,last_name,is_verified,avatar_url").eq("id", uid).maybeSingle(),
         supabase.from("notifications").select("id").eq("is_read", false),
         supabase.from("user_roles").select("role").eq("role", "admin").maybeSingle(),
       ]);

@@ -66,7 +66,17 @@ function RequestPage() {
 
   const { data: profile } = useQuery({
     queryKey: ["request-profile"],
-    queryFn: async () => (await supabase.from("profiles").select("city,is_verified").maybeSingle()).data,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return null;
+      return (
+        await supabase
+          .from("profiles")
+          .select("city,is_verified")
+          .eq("id", auth.user.id)
+          .maybeSingle()
+      ).data;
+    },
   });
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormVals>({

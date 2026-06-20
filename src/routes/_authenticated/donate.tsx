@@ -69,7 +69,17 @@ function DonatePage() {
 
   const { data: profile } = useQuery({
     queryKey: ["donate-profile"],
-    queryFn: async () => (await supabase.from("profiles").select("first_name,last_name,email").maybeSingle()).data,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return null;
+      return (
+        await supabase
+          .from("profiles")
+          .select("first_name,last_name,email")
+          .eq("id", auth.user.id)
+          .maybeSingle()
+      ).data;
+    },
   });
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FormVals>({
