@@ -10,30 +10,77 @@ import { AdminShell } from "@/components/sagip/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PH_PROVINCES, PH_PROVINCES_CITIES } from "@/lib/ph-locations";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, ShieldAlert, KeyRound } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const schema = z.object({
   first_name: z.string().trim().min(1, "Required").max(60),
   middle_name: z.string().trim().max(60).optional().or(z.literal("")),
   last_name: z.string().trim().min(1, "Required").max(60),
   mobile_number: z.string().trim().min(7, "Enter a valid mobile number").max(20),
-  residential_address: z.string().trim().min(5).max(200),
-  city: z.string().trim().min(2).max(100),
-  province: z.string().trim().min(2).max(100),
+  country: z.literal("PH").default("PH"),
+  street: z.string().trim().min(2, "Required").max(200),
+  city: z.string().min(2, "Required").max(80),
+  province: z.string().min(2, "Required").max(80),
+  postal_code: z.string().trim().regex(/^\d{4}$/, "PH postal code must be 4 digits"),
 });
 
 type FormVals = z.infer<typeof schema>;
 
 const passwordSchema = z.object({
-  password: z.string().min(8, "At least 8 characters").regex(/[A-Z]/, "Add an uppercase letter").regex(/[0-9]/, "Add a number"),
-  confirm: z.string(),
+  password: z.string()
+    .min(8, "At least 8 characters")
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[a-z]/, "Must contain a lowercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
+  confirm: z.string().min(1, "Confirm password is required"),
 }).refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords do not match" });
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "My profile — SAGIP" }] }),
   component: ProfilePage,
 });
+
+function getPasswordStrength(password: string) {
+  if (!password) return { score: 0, label: "None", color: "bg-muted" };
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 2) return { score, label: "Weak", color: "bg-destructive" };
+  if (score === 3) return { score, label: "Fair", color: "bg-orange-500" };
+  if (score === 4) return { score, label: "Strong", color: "bg-yellow-500" };
+  return { score, label: "Very Strong", color: "bg-relief" };
+}
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const { score, label, color } = getPasswordStrength(password);
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Password strength:</span>
+        <span className={cn("font-semibold", 
+          score <= 2 ? "text-destructive" : 
+          score === 3 ? "text-orange-500" : 
+          score === 4 ? "text-yellow-600" : "text-relief"
+        )}>{label}</span>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 h-1.5">
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 1 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 3 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 4 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 5 ? color : "bg-muted")} />
+      </div>
+    </div>
+  );
+}
 
 function ProfilePage() {
   const queryClient = useQueryClient();
@@ -48,7 +95,7 @@ function ProfilePage() {
       const [profileResult, rolesResult] = await Promise.all([
         supabase
           .from("profiles")
-          .select("first_name,middle_name,last_name,birth_date,gender,mobile_number,email,residential_address,city,province,id_type,id_number,is_verified,is_suspended")
+          .select("first_name,middle_name,last_name,birth_date,gender,mobile_number,email,residential_address,street,city,province,postal_code,country,is_verified,is_suspended")
           .eq("id", u.user.id)
           .maybeSingle(),
         supabase
@@ -67,7 +114,11 @@ function ProfilePage() {
   const profile = profileData?.profile;
   const isAdmin = profileData?.isAdmin;
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormVals>({ 
+    resolver: zodResolver(schema) 
+  });
+
+  const province = watch("province");
 
   useEffect(() => {
     if (profile) {
@@ -76,9 +127,11 @@ function ProfilePage() {
         middle_name: profile.middle_name ?? "",
         last_name: profile.last_name,
         mobile_number: profile.mobile_number ?? "",
-        residential_address: profile.residential_address ?? "",
+        street: profile.street ?? "",
         city: profile.city ?? "",
         province: profile.province ?? "",
+        postal_code: profile.postal_code ?? "",
+        country: "PH",
       });
     }
   }, [profile, reset]);
@@ -86,6 +139,7 @@ function ProfilePage() {
   const onSave = async (vals: FormVals) => {
     setSaving(true);
     const { data: auth } = await supabase.auth.getUser();
+    const fullAddress = `${vals.street}, ${vals.city}, ${vals.province} ${vals.postal_code}, ${vals.country}`;
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -93,9 +147,12 @@ function ProfilePage() {
         middle_name: vals.middle_name || null,
         last_name: vals.last_name,
         mobile_number: vals.mobile_number,
-        residential_address: vals.residential_address,
+        residential_address: fullAddress,
+        street: vals.street,
         city: vals.city,
         province: vals.province,
+        postal_code: vals.postal_code,
+        country: "PH",
       })
       .eq("id", auth.user!.id);
     setSaving(false);
@@ -107,13 +164,38 @@ function ProfilePage() {
   };
 
   const pwForm = useForm<z.infer<typeof passwordSchema>>({ resolver: zodResolver(passwordSchema) });
+  const pw = pwForm.watch("password") ?? "";
+
   const onChangePassword = async (vals: z.infer<typeof passwordSchema>) => {
     setPwSaving(true);
-    const { error } = await supabase.auth.updateUser({ password: vals.password });
-    setPwSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Password updated");
-    pwForm.reset();
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) throw new Error("Not logged in");
+
+      // Verify password is not reused
+      const { data: isReused, error: checkErr } = await supabase.rpc("check_password_reuse", {
+        _user_id: userId,
+        _password: vals.password
+      });
+
+      if (checkErr) throw new Error(checkErr.message);
+      if (isReused) {
+        toast.error("You cannot reuse any of your last 5 passwords or enter your current password as new.");
+        setPwSaving(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: vals.password });
+      if (error) throw error;
+      
+      toast.success("Password updated");
+      pwForm.reset();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to update password");
+    } finally {
+      setPwSaving(false);
+    }
   };
 
   const Shell = isAdmin ? AdminShell : DashShell;
@@ -169,24 +251,60 @@ function ProfilePage() {
                 <Label>Email</Label>
                 <Input value={profile.email} readOnly className="mt-1.5 bg-muted/40" />
               </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="addr">Residential address</Label>
-                <Input id="addr" className="mt-1.5" {...register("residential_address")} />
-                {errors.residential_address && <p className="mt-1 text-xs text-destructive">{errors.residential_address.message}</p>}
+
+              <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="country">Country</Label>
+                  <Input id="country" className="mt-1.5 bg-muted/40" value="Philippines" readOnly />
+                </div>
+                <div>
+                  <Label htmlFor="street">Street Address</Label>
+                  <Input id="street" className="mt-1.5" {...register("street")} placeholder="House #, street, subdivision" />
+                  {errors.street && <p className="mt-1 text-xs text-destructive">{errors.street.message}</p>}
+                </div>
               </div>
-              <div>
-                <Label htmlFor="city">City</Label>
-                <Input id="city" className="mt-1.5" {...register("city")} />
-              </div>
-              <div>
-                <Label htmlFor="province">Province</Label>
-                <Input id="province" className="mt-1.5" {...register("province")} />
+
+              <div className="sm:col-span-2 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="province">Province</Label>
+                  <Select
+                    value={watch("province") ?? ""}
+                    onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
+                  >
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select province" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {errors.province && <p className="mt-1 text-xs text-destructive">{errors.province.message}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="city">City / Municipality</Label>
+                  <Select
+                    value={watch("city") ?? ""}
+                    onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
+                    disabled={!watch("province")}
+                  >
+                    <SelectTrigger className="mt-1.5"><SelectValue placeholder={watch("province") ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {(PH_PROVINCES_CITIES[watch("province") ?? ""] ?? []).slice().sort().map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.city && <p className="mt-1 text-xs text-destructive">{errors.city.message}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="postal_code">Postal Code</Label>
+                  <Input id="postal_code" className="mt-1.5" {...register("postal_code")} placeholder="4-digit postal code" />
+                  {errors.postal_code && <p className="mt-1 text-xs text-destructive">{errors.postal_code.message}</p>}
+                </div>
               </div>
             </div>
           </section>
 
           <Button type="submit" disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Save changes
           </Button>
         </form>
 
@@ -217,11 +335,12 @@ function ProfilePage() {
             </div>
             <div>
               <Label htmlFor="confirm-pw" className="text-xs">Confirm</Label>
-              <Input id="confirm-pw" type="password" className="mt-1" {...pwForm.register("confirm")} />
+              <Input id="confirm-pw" type="password" className="mt-1" {...pwForm.register("confirm", { onBlur: () => pwForm.trigger("confirm") })} />
               {pwForm.formState.errors.confirm && <p className="mt-1 text-xs text-destructive">{pwForm.formState.errors.confirm.message}</p>}
             </div>
-            <Button type="submit" variant="outline" size="sm" disabled={pwSaving} className="w-full">
-              {pwSaving && <Loader2 className="h-4 w-4 animate-spin" />} Update password
+            <PasswordStrengthMeter password={pw} />
+            <Button type="submit" variant="outline" size="sm" disabled={pwSaving} className="w-full mt-2">
+              {pwSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Update password
             </Button>
           </form>
         </aside>

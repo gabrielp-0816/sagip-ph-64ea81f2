@@ -7,12 +7,13 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -115,15 +116,56 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+    let timeoutId: NodeJS.Timeout;
+
+    const handleLogout = async () => {
+      await supabase.auth.signOut();
+      toast.warning("You have been logged out due to inactivity.", {
+        description: "Please sign in again to continue.",
+        duration: 8000,
+      });
+      router.invalidate();
+    };
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleLogout, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    events.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [isAuthenticated, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

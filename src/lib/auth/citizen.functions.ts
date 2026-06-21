@@ -12,16 +12,24 @@ const idTypeEnum = z.enum([
 
 const schema = z.object({
   email: z.string().email().max(255),
-  password: z.string().min(8).max(128),
+  password: z.string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[a-z]/, "Must contain a lowercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
   firstName: z.string().trim().min(1).max(80),
   middleName: z.string().trim().max(80).optional().nullable(),
   lastName: z.string().trim().min(1).max(80),
   birthDate: z.string().min(4).max(20),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   mobile: z.string().trim().min(7).max(20),
-  address: z.string().trim().min(5).max(200),
+  street: z.string().trim().min(2).max(200),
   city: z.string().trim().min(2).max(80),
   province: z.string().trim().min(2).max(80),
+  postalCode: z.string().trim().min(3).max(20),
+  country: z.string().trim().min(2).max(80),
   idType: idTypeEnum,
   idNumber: z.string().trim().min(3).max(50),
   idFileName: z.string().trim().min(1).max(200),
@@ -43,11 +51,11 @@ export const signUpCitizen = createServerFn({ method: "POST" })
     if (fileBytes.length < 1024) throw new Error("ID document file appears to be empty");
     if (fileBytes.length > 5 * 1024 * 1024) throw new Error("ID document must be 5MB or smaller");
 
-    // Create auth user (auto-confirm so they can sign in immediately).
+    // Create auth user (set email_confirm to false so they must verify via OTP/link).
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { first_name: data.firstName, last_name: data.lastName, role: "citizen" },
     });
     if (createErr) throw new Error(createErr.message);
@@ -66,6 +74,7 @@ export const signUpCitizen = createServerFn({ method: "POST" })
     }
 
     // Insert profile
+    const fullAddress = `${data.street}, ${data.city}, ${data.province} ${data.postalCode}, ${data.country}`;
     const { error: profErr } = await supabaseAdmin.from("profiles").insert({
       id: userId,
       first_name: data.firstName,
@@ -75,9 +84,12 @@ export const signUpCitizen = createServerFn({ method: "POST" })
       gender: data.gender,
       mobile_number: data.mobile,
       email: data.email,
-      residential_address: data.address,
+      residential_address: fullAddress,
+      street: data.street,
       city: data.city,
       province: data.province,
+      postal_code: data.postalCode,
+      country: data.country,
       id_type: data.idType,
       id_number: data.idNumber,
       id_document_path: path,

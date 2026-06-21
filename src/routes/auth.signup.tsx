@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TermsDialog } from "@/components/sagip/TermsDialog";
 import { PH_PROVINCES, PH_PROVINCES_CITIES } from "@/lib/ph-locations";
 import { toast } from "sonner";
-import { Loader2, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check, AlertTriangle } from "lucide-react";
+import { Loader2, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check, AlertTriangle, ShieldCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -40,10 +41,11 @@ const schema = z.object({
   birthDate: z.string().refine((v) => {
     if (!v) return false;
     const d = new Date(v); if (isNaN(d.getTime())) return false;
+    if (d > new Date()) return false;
     const today = new Date();
     const age = (today.getTime() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
     return age >= 18 && age <= 120;
-  }, "Age must be between 18 and 120 years"),
+  }, "Birth date must represent an age between 18 and 120 years"),
   gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
   mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
   email: z.string().email().refine((v) => {
@@ -55,9 +57,11 @@ const schema = z.object({
     const domain = v.slice(at + 1);
     return /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(domain);
   }, "Enter a valid email address"),
-  address: z.string().min(5, "Required").max(200),
+  country: z.literal("PH").default("PH"),
+  street: z.string().trim().min(2, "Required").max(200),
   city: z.string().min(2, "Required").max(80),
   province: z.string().min(2, "Required").max(80),
+  postalCode: z.string().trim().regex(/^\d{4}$/, "PH postal code must be 4 digits"),
   idType: z.enum(["national_id", "drivers_license", "passport", "umid", "postal_id", "voters_id"]),
   idNumber: z.string()
     .min(3, "Required")
@@ -100,11 +104,48 @@ const STEPS = [
 ] as const;
 
 const STEP_FIELDS: Record<number, (keyof FormVals)[]> = {
-  0: ["firstName", "middleName", "lastName", "birthDate", "gender", "mobile", "email", "address", "city", "province"],
+  0: ["firstName", "middleName", "lastName", "birthDate", "gender", "mobile", "email", "country", "street", "city", "province", "postalCode"],
   1: ["idType", "idNumber"],
   2: ["password", "confirm"],
   3: ["acceptTerms", "acceptPrivacy"],
 };
+
+function getPasswordStrength(password: string) {
+  if (!password) return { score: 0, label: "None", color: "bg-muted" };
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 2) return { score, label: "Weak", color: "bg-destructive" };
+  if (score === 3) return { score, label: "Fair", color: "bg-orange-500" };
+  if (score === 4) return { score, label: "Strong", color: "bg-yellow-500" };
+  return { score, label: "Very Strong", color: "bg-relief" };
+}
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const { score, label, color } = getPasswordStrength(password);
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Password strength:</span>
+        <span className={cn("font-semibold", 
+          score <= 2 ? "text-destructive" : 
+          score === 3 ? "text-orange-500" : 
+          score === 4 ? "text-yellow-600" : "text-relief"
+        )}>{label}</span>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 h-1.5">
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 1 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 3 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 4 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 5 ? color : "bg-muted")} />
+      </div>
+    </div>
+  );
+}
 
 function SignupPage() {
   const navigate = useNavigate();
@@ -112,11 +153,47 @@ function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [idFile, setIdFile] = useState<File | null>(null);
   const [step, setStep] = useState(0);
-  const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<FormVals>({ resolver: zodResolver(schema), defaultValues: { gender: undefined as any, idType: undefined as any, acceptTerms: false as any, acceptPrivacy: false as any } });
+
+  // OTP Verification States
+  const [showOtpVerify, setShowOtpVerify] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendDisabled, setResendDisabled] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+
+  const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<FormVals>({ 
+    resolver: zodResolver(schema), 
+    mode: "onBlur",
+    defaultValues: { 
+      gender: undefined as any, 
+      idType: undefined as any, 
+      acceptTerms: false as any, 
+      acceptPrivacy: false as any,
+      country: "PH",
+      street: "",
+      postalCode: "",
+      city: "",
+      province: ""
+    } 
+  });
 
   const birthDate = watch("birthDate");
   const age = calcAge(birthDate);
   const pw = watch("password") ?? "";
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendDisabled && resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (resendTimer === 0) {
+      setResendDisabled(false);
+      setResendTimer(60);
+    }
+    return () => clearInterval(interval);
+  }, [resendDisabled, resendTimer]);
 
   const next = async () => {
     const fields = STEP_FIELDS[step];
@@ -156,9 +233,11 @@ function SignupPage() {
           birthDate: vals.birthDate,
           gender: vals.gender,
           mobile: vals.mobile,
-          address: vals.address,
+          street: vals.street,
           city: vals.city,
           province: vals.province,
+          postalCode: vals.postalCode,
+          country: vals.country,
           idType: vals.idType,
           idNumber: vals.idNumber,
           idFileName: idFile.name,
@@ -167,25 +246,119 @@ function SignupPage() {
         },
       });
 
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
+      // Trigger verification OTP resend from Supabase
+      const { error: resendErr } = await supabase.auth.resend({
+        type: "signup",
         email: vals.email,
-        password: vals.password,
       });
-      if (signInErr) {
-        toast.success("Account created. Please sign in.");
-        navigate({ to: "/auth" });
-        return;
+
+      if (resendErr) {
+        toast.warning("Account created, but verification OTP failed to send: " + resendErr.message);
+      } else {
+        toast.success("Verification code sent to " + vals.email);
       }
 
-      toast.success("Welcome to SAGIP");
-      await router.invalidate();
-      navigate({ to: "/dashboard" });
+      setOtpEmail(vals.email);
+      setShowOtpVerify(true);
+      setResendDisabled(true);
     } catch (e: any) {
       toast.error(e?.message ?? "Registration failed");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length < 6) {
+      toast.error("Enter the complete 6-digit code.");
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: otpEmail,
+        token: otpCode,
+        type: "signup",
+      });
+
+      if (error) throw error;
+
+      toast.success("Welcome to SAGIP! Email verified.");
+      await router.invalidate();
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      toast.error(err?.message ?? "OTP verification failed");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setOtpLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: otpEmail,
+      });
+      if (error) throw error;
+      toast.success("Verification code resent.");
+      setResendDisabled(true);
+      setResendTimer(60);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to resend code");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  if (showOtpVerify) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-xl sm:p-8">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <h1 className="mt-4 font-display text-2xl font-bold">Verify your email</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We have sent a 6-digit verification code to <strong className="text-foreground">{otpEmail}</strong>.
+          </p>
+
+          <form onSubmit={handleOtpSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="otp" className="text-left block text-xs font-semibold">Verification Code</Label>
+              <Input
+                id="otp"
+                type="text"
+                maxLength={6}
+                placeholder="000000"
+                className="text-center font-mono text-xl tracking-[0.25em]"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                required
+              />
+            </div>
+
+            <Button type="submit" className="w-full" size="lg" disabled={otpLoading}>
+              {otpLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Verify and Sign In
+            </Button>
+          </form>
+
+          <div className="mt-6 text-xs text-muted-foreground">
+            Didn't receive the code?{" "}
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={resendDisabled || otpLoading}
+              className="font-semibold text-primary hover:underline disabled:opacity-50"
+            >
+              {resendDisabled ? `Resend in ${resendTimer}s` : "Resend Code"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isLast = step === STEPS.length - 1;
 
@@ -229,33 +402,48 @@ function SignupPage() {
               <Field label="Mobile number" error={errors.mobile?.message}><Input placeholder="09XXXXXXXXX" {...register("mobile")} /></Field>
               <Field label="Email address" error={errors.email?.message}><Input type="email" {...register("email")} /></Field>
             </div>
-            <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Province" error={errors.province?.message}>
-                <Select
-                  value={watch("province") ?? ""}
-                  onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="City / Municipality" error={errors.city?.message}>
-                <Select
-                  value={watch("city") ?? ""}
-                  onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
-                  disabled={!watch("province")}
-                >
-                  <SelectTrigger><SelectValue placeholder={watch("province") ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {(PH_PROVINCES_CITIES[watch("province") ?? ""] ?? []).slice().sort().map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+
+            <div className="border-t border-border pt-4">
+              <p className="font-display text-sm font-semibold mb-3 text-foreground">Address Details</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Country">
+                  <Input value="Philippines" readOnly className="bg-muted/40" />
+                </Field>
+                <Field label="Street address" error={errors.street?.message}>
+                  <Input placeholder="House #, street name, subdivision" {...register("street")} />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                <Field label="Province" error={errors.province?.message}>
+                  <Select
+                    value={watch("province") ?? ""}
+                    onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="City / Municipality" error={errors.city?.message}>
+                  <Select
+                    value={watch("city") ?? ""}
+                    onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
+                    disabled={!watch("province")}
+                  >
+                    <SelectTrigger><SelectValue placeholder={watch("province") ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {(PH_PROVINCES_CITIES[watch("province") ?? ""] ?? []).slice().sort().map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Postal / ZIP Code" error={errors.postalCode?.message}>
+                  <Input placeholder="Postal code (4 digits)" {...register("postalCode")} />
+                </Field>
+              </div>
             </div>
           </Fieldset>
         )}
@@ -299,10 +487,17 @@ function SignupPage() {
         {step === 2 && (
           <Fieldset title="Password" description="Minimum 8 characters with uppercase, lowercase, number, and special character.">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Password" error={errors.password?.message}><Input type="password" {...register("password")} /></Field>
-              <Field label="Confirm password" error={errors.confirm?.message}><Input type="password" {...register("confirm")} /></Field>
+              <Field label="Password" error={errors.password?.message}>
+                <Input type="password" {...register("password")} />
+              </Field>
+              <Field label="Confirm password" error={errors.confirm?.message}>
+                <Input type="password" {...register("confirm", { onBlur: () => trigger("confirm") })} />
+              </Field>
             </div>
-            <PasswordChecklist password={pw} />
+            <PasswordStrengthMeter password={pw} />
+            <div className="mt-4 border-t border-border/55 pt-3">
+              <PasswordChecklist password={pw} />
+            </div>
           </Fieldset>
         )}
 

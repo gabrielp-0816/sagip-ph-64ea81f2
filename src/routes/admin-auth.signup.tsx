@@ -21,6 +21,7 @@ import { PH_PROVINCES, PH_PROVINCES_CITIES } from "@/lib/ph-locations";
 import { isValidEmail } from "@/lib/locations";
 import { toast } from "sonner";
 import { Loader2, KeyRound, Upload, CheckCircle2, ArrowLeft, ArrowRight, Check, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const passwordRules = z
   .string()
@@ -56,19 +57,21 @@ const schema = z
     birthDate: z.string().refine((v) => {
       if (!v) return false;
       const d = new Date(v); if (isNaN(d.getTime())) return false;
+      if (d > new Date()) return false;
       const age = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
       return age >= 18 && age <= 120;
-    }, "Age must be between 18 and 120 years"),
+    }, "Birth date must represent an age between 18 and 120 years"),
     gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
     mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
     email: z.string().refine(isValidEmail, "Enter a valid email address").transform((v) => v.toLowerCase()),
-    address: z.string().trim().min(5, "Required").max(200),
+    country: z.literal("PH").default("PH"),
+    street: z.string().trim().min(2, "Required").max(200),
     city: z.string().min(2, "Required").max(80),
     province: z.string().min(2, "Required").max(80),
+    postalCode: z.string().trim().regex(/^\d{4}$/, "PH postal code must be 4 digits"),
     inviteCode: z.string().trim().min(4, "Required").max(80),
     idType: idTypeEnum,
     idNumber: z.string()
-      .trim()
       .min(3, "Required")
       .max(50)
       .regex(/^[0-9-]+$/, "ID number may contain digits and dashes only"),
@@ -121,11 +124,48 @@ const STEPS = [
 ] as const;
 
 const STEP_FIELDS: Record<number, (keyof FormVals)[]> = {
-  0: ["firstName", "middleName", "lastName", "birthDate", "gender", "mobile", "email", "address", "city", "province"],
+  0: ["firstName", "middleName", "lastName", "birthDate", "gender", "mobile", "email", "country", "street", "city", "province", "postalCode"],
   1: ["inviteCode", "idType", "idNumber"],
   2: ["password", "confirm"],
   3: ["acceptTerms", "acceptPrivacy"],
 };
+
+function getPasswordStrength(password: string) {
+  if (!password) return { score: 0, label: "None", color: "bg-muted" };
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 2) return { score, label: "Weak", color: "bg-destructive" };
+  if (score === 3) return { score, label: "Fair", color: "bg-orange-500" };
+  if (score === 4) return { score, label: "Strong", color: "bg-yellow-500" };
+  return { score, label: "Very Strong", color: "bg-relief" };
+}
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const { score, label, color } = getPasswordStrength(password);
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Password strength:</span>
+        <span className={cn("font-semibold", 
+          score <= 2 ? "text-destructive" : 
+          score === 3 ? "text-orange-500" : 
+          score === 4 ? "text-yellow-600" : "text-relief"
+        )}>{label}</span>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 h-1.5">
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 1 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 3 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 4 ? color : "bg-muted")} />
+        <div className={cn("h-full rounded-full transition-all duration-300", score >= 5 ? color : "bg-muted")} />
+      </div>
+    </div>
+  );
+}
 
 function AdminSignup() {
   const navigate = useNavigate();
@@ -135,7 +175,16 @@ function AdminSignup() {
   const [step, setStep] = useState(0);
   const { register, handleSubmit, setValue, watch, trigger, formState: { errors } } = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { acceptTerms: false as any, acceptPrivacy: false as any },
+    mode: "onBlur",
+    defaultValues: { 
+      acceptTerms: false as any, 
+      acceptPrivacy: false as any,
+      country: "PH",
+      street: "",
+      postalCode: "",
+      city: "",
+      province: ""
+    },
   });
 
   const idType = watch("idType");
@@ -143,6 +192,8 @@ function AdminSignup() {
   const province = watch("province");
   const gender = watch("gender");
   const birthDate = watch("birthDate");
+  const pw = watch("password") ?? "";
+
   const computedAge = (() => {
     if (!birthDate) return null;
     const d = new Date(birthDate); if (isNaN(d.getTime())) return null;
@@ -196,9 +247,11 @@ function AdminSignup() {
           birthDate: vals.birthDate,
           gender: vals.gender,
           mobile: vals.mobile,
-          address: vals.address,
+          street: vals.street,
           city: vals.city,
           province: vals.province,
+          postalCode: vals.postalCode,
+          country: vals.country,
           inviteCode: vals.inviteCode,
           idType: vals.idType,
           idNumber: vals.idNumber,
@@ -275,33 +328,48 @@ function AdminSignup() {
               <Field label="Email address" error={errors.email?.message}>
                 <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
               </Field>
-              <Field label="Residential address" error={errors.address?.message}><Input {...register("address")} /></Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Province" error={errors.province?.message}>
-                  <Select
-                    value={province ?? ""}
-                    onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="City / Municipality" error={errors.city?.message}>
-                  <Select
-                    value={city ?? ""}
-                    onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
-                    disabled={!province}
-                  >
-                    <SelectTrigger><SelectValue placeholder={province ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      {(PH_PROVINCES_CITIES[province ?? ""] ?? []).slice().sort().map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+
+              <div className="border-t border-border pt-4">
+                <p className="font-display text-sm font-semibold mb-3 text-foreground">Address Details</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Country">
+                    <Input value="Philippines" readOnly className="bg-muted/40" />
+                  </Field>
+                  <Field label="Street address" error={errors.street?.message}>
+                    <Input placeholder="House #, street name, subdivision" {...register("street")} />
+                  </Field>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                  <Field label="Province" error={errors.province?.message}>
+                    <Select
+                      value={province ?? ""}
+                      onValueChange={(v) => { setValue("province", v, { shouldValidate: true }); setValue("city", "" as any); }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select province" /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {PH_PROVINCES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="City / Municipality" error={errors.city?.message}>
+                    <Select
+                      value={city ?? ""}
+                      onValueChange={(v) => setValue("city", v, { shouldValidate: true })}
+                      disabled={!province}
+                    >
+                      <SelectTrigger><SelectValue placeholder={province ? "Select city/municipality" : "Select province first"} /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {(PH_PROVINCES_CITIES[province ?? ""] ?? []).slice().sort().map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Postal / ZIP Code" error={errors.postalCode?.message}>
+                    <Input placeholder="Postal code (4 digits)" {...register("postalCode")} />
+                  </Field>
+                </div>
               </div>
             </Section>
           )}
@@ -368,7 +436,11 @@ function AdminSignup() {
             <Section title="Password" description="Minimum 8 characters with uppercase, lowercase, number, and special character.">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Password" error={errors.password?.message}><PasswordInput {...register("password")} /></Field>
-                <Field label="Confirm password" error={errors.confirm?.message}><PasswordInput {...register("confirm")} /></Field>
+                <Field label="Confirm password" error={errors.confirm?.message}><PasswordInput {...register("confirm", { onBlur: () => trigger("confirm") })} /></Field>
+              </div>
+              <PasswordStrengthMeter password={pw} />
+              <div className="mt-4 border-t border-white/10 pt-3">
+                <PasswordChecklist password={pw} />
               </div>
             </Section>
           )}
@@ -464,5 +536,24 @@ function Field({ label, error, optional, children }: { label: string; error?: st
       <div className="mt-1.5">{children}</div>
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+function PasswordChecklist({ password }: { password: string }) {
+  const checks = [
+    { ok: password.length >= 8, label: "At least 8 characters" },
+    { ok: /[A-Z]/.test(password), label: "One uppercase letter" },
+    { ok: /[a-z]/.test(password), label: "One lowercase letter" },
+    { ok: /[0-9]/.test(password), label: "One number" },
+    { ok: /[^A-Za-z0-9]/.test(password), label: "One special character" },
+  ];
+  return (
+    <ul className="grid gap-1.5 text-xs sm:grid-cols-2">
+      {checks.map((c) => (
+        <li key={c.label} className={c.ok ? "text-relief" : "text-muted-foreground"}>
+          {c.ok ? "✓" : "○"} {c.label}
+        </li>
+      ))}
+    </ul>
   );
 }
