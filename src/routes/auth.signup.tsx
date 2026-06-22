@@ -57,7 +57,7 @@ const schema = z.object({
     const domain = v.slice(at + 1);
     return /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(domain);
   }, "Enter a valid email address"),
-  country: z.literal("PH").default("PH"),
+  country: z.literal("PH"),
   street: z.string().trim().min(2, "Required").max(200),
   city: z.string().min(2, "Required").max(80),
   province: z.string().min(2, "Required").max(80),
@@ -405,16 +405,11 @@ function SignupPage() {
 
             <div className="border-t border-border pt-4">
               <p className="font-display text-sm font-semibold mb-3 text-foreground">Address Details</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+
+              <div className="grid gap-4 sm:grid-cols-3">
                 <Field label="Country">
                   <Input value="Philippines" readOnly className="bg-muted/40" />
                 </Field>
-                <Field label="Street address" error={errors.street?.message}>
-                  <Input placeholder="House #, street name, subdivision" {...register("street")} />
-                </Field>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3 mt-4">
                 <Field label="Province" error={errors.province?.message}>
                   <Select
                     value={watch("province") ?? ""}
@@ -440,6 +435,14 @@ function SignupPage() {
                     </SelectContent>
                   </Select>
                 </Field>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                <div className="sm:col-span-2">
+                  <Field label="Street address" error={errors.street?.message}>
+                    <Input placeholder="House #, street name, subdivision" {...register("street")} />
+                  </Field>
+                </div>
                 <Field label="Postal / ZIP Code" error={errors.postalCode?.message}>
                   <Input placeholder="Postal code (4 digits)" {...register("postalCode")} />
                 </Field>

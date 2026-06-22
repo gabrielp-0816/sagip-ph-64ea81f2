@@ -64,7 +64,7 @@ const schema = z
     gender: z.enum(["male", "female", "other", "prefer_not_to_say"]),
     mobile: z.string().regex(/^(\+?63|0)?9\d{9}$/, "Use a valid PH mobile (09XXXXXXXXX)"),
     email: z.string().refine(isValidEmail, "Enter a valid email address").transform((v) => v.toLowerCase()),
-    country: z.literal("PH").default("PH"),
+    country: z.literal("PH"),
     street: z.string().trim().min(2, "Required").max(200),
     city: z.string().min(2, "Required").max(80),
     province: z.string().min(2, "Required").max(80),
@@ -204,6 +204,8 @@ function AdminSignup() {
     return a;
   })();
 
+  const age = computedAge !== null ? String(computedAge) : "";
+
   const next = async () => {
     const fields = STEP_FIELDS[step];
     const ok = await trigger(fields as any);
@@ -301,9 +303,8 @@ function AdminSignup() {
                 <Field label="Last name" error={errors.lastName?.message}><Input {...register("lastName")} /></Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Birth date" error={errors.birthDate?.message}>
-                  <Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} />
-                </Field>
+                <Field label="Birth date" error={errors.birthDate?.message}><Input type="date" {...register("birthDate")} max={new Date().toISOString().slice(0,10)} /></Field>
+                <Field label="Age"><Input value={age} readOnly disabled placeholder="—" /></Field>
                 <Field label="Gender" error={errors.gender?.message}>
                   <Select value={gender ?? ""} onValueChange={(v: any) => setValue("gender", v, { shouldValidate: true })}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -315,32 +316,25 @@ function AdminSignup() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Mobile number" error={errors.mobile?.message}>
-                  <Input placeholder="09XXXXXXXXX" {...register("mobile")} />
-                </Field>
               </div>
-              {computedAge !== null && computedAge > 120 && (
+              {age !== "" && Number(age) > 120 && (
                 <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>The age you entered exceeds 120 years. Please verify your birth date — registration is limited to ages 18–120.</span>
                 </div>
               )}
-              <Field label="Email address" error={errors.email?.message}>
-                <Input type="email" placeholder="name@city.gov.ph" {...register("email")} />
-              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Mobile number" error={errors.mobile?.message}><Input placeholder="09XXXXXXXXX" {...register("mobile")} /></Field>
+                <Field label="Email address" error={errors.email?.message}><Input type="email" placeholder="name@city.gov.ph" {...register("email")} /></Field>
+              </div>
 
               <div className="border-t border-border pt-4">
                 <p className="font-display text-sm font-semibold mb-3 text-foreground">Address Details</p>
-                <div className="grid gap-4 sm:grid-cols-2">
+
+                <div className="grid gap-4 sm:grid-cols-3">
                   <Field label="Country">
                     <Input value="Philippines" readOnly className="bg-muted/40" />
                   </Field>
-                  <Field label="Street address" error={errors.street?.message}>
-                    <Input placeholder="House #, street name, subdivision" {...register("street")} />
-                  </Field>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3 mt-4">
                   <Field label="Province" error={errors.province?.message}>
                     <Select
                       value={province ?? ""}
@@ -366,6 +360,14 @@ function AdminSignup() {
                       </SelectContent>
                     </Select>
                   </Field>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                  <div className="sm:col-span-2">
+                    <Field label="Street address" error={errors.street?.message}>
+                      <Input placeholder="House #, street name, subdivision" {...register("street")} />
+                    </Field>
+                  </div>
                   <Field label="Postal / ZIP Code" error={errors.postalCode?.message}>
                     <Input placeholder="Postal code (4 digits)" {...register("postalCode")} />
                   </Field>
