@@ -3,8 +3,11 @@ function group(int: string) {
   return int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-export function formatPHP(amount: number | string | null | undefined, options?: { compact?: boolean; decimals?: number }) {
-  const n = typeof amount === "string" ? Number(amount) : amount ?? 0;
+export function formatPHP(
+  amount: number | string | null | undefined,
+  options?: { compact?: boolean; decimals?: number },
+) {
+  const n = typeof amount === "string" ? Number(amount) : (amount ?? 0);
   if (!isFinite(n)) return "₱0";
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
@@ -33,14 +36,40 @@ export function formatPHP(amount: number | string | null | undefined, options?: 
 export function formatDate(d: string | Date | null | undefined) {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 }
 
 export function formatDateTime(d: string | Date | null | undefined) {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const hh = String(date.getUTCHours()).padStart(2, "0");
   const mm = String(date.getUTCMinutes()).padStart(2, "0");
   return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()} · ${hh}:${mm} UTC`;

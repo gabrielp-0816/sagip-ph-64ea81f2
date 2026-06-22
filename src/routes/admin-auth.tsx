@@ -13,7 +13,9 @@ export const Route = createFileRoute("/admin-auth")({
             <ShieldCheck className="mr-1 inline h-3 w-3" /> Admin Portal
           </span>
         </Link>
-        <Link to="/auth" className="text-sm font-medium text-paper/70 hover:text-paper">Citizen sign in →</Link>
+        <Link to="/auth" className="text-sm font-medium text-paper/70 hover:text-paper">
+          Citizen sign in →
+        </Link>
       </div>
       <Outlet />
     </div>

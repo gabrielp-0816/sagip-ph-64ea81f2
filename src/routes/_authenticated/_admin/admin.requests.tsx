@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPHP, formatDate, timeAgo } from "@/lib/format";
 import { toast } from "sonner";
@@ -21,18 +33,33 @@ export const Route = createFileRoute("/_authenticated/_admin/admin/requests")({
 
 function ManageRequests() {
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<"all" | "pending" | "under_review" | "approved" | "rejected" | "released">("pending");
+  const [filter, setFilter] = useState<
+    "all" | "pending" | "under_review" | "approved" | "rejected" | "released"
+  >("pending");
   const [viewing, setViewing] = useState<any | null>(null);
   const [releaseFor, setReleaseFor] = useState<any | null>(null);
-  const [releaseForm, setReleaseForm] = useState({ amount: "", allocation_id: "", reference_number: "", notes: "" });
+  const [releaseForm, setReleaseForm] = useState({
+    amount: "",
+    allocation_id: "",
+    reference_number: "",
+    notes: "",
+  });
   const [releaseProof, setReleaseProof] = useState<File | null>(null);
 
-  const allocs = useQuery({ queryKey: ["allocs-available"], queryFn: async () => (await supabase.from("fund_allocations").select("id,label,allocated_amount,released_amount")).data ?? [] });
+  const allocs = useQuery({
+    queryKey: ["allocs-available"],
+    queryFn: async () =>
+      (await supabase.from("fund_allocations").select("id,label,allocated_amount,released_amount"))
+        .data ?? [],
+  });
 
   const list = useQuery({
     queryKey: ["admin-requests", filter],
     queryFn: async () => {
-      let q = supabase.from("fund_requests").select("*,disasters(name),disaster_categories(name)").order("created_at", { ascending: false });
+      let q = supabase
+        .from("fund_requests")
+        .select("*,disasters(name),disaster_categories(name)")
+        .order("created_at", { ascending: false });
       if (filter !== "all") q = q.eq("status", filter);
       const { data, error } = await q;
       if (error) throw error;
@@ -40,7 +67,10 @@ function ManageRequests() {
       const ids = Array.from(new Set(rows.map((r: any) => r.requester_id).filter(Boolean)));
       let profilesById: Record<string, any> = {};
       if (ids.length) {
-        const { data: profs } = await supabase.from("profiles").select("id,first_name,last_name,mobile_number,email").in("id", ids);
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id,first_name,last_name,mobile_number,email")
+          .in("id", ids);
         profilesById = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p]));
       }
       return rows.map((r: any) => ({ ...r, profiles: profilesById[r.requester_id] ?? null }));
@@ -48,12 +78,26 @@ function ManageRequests() {
   });
 
   useEffect(() => {
-    const ch = supabase.channel("admin-req-rt").on("postgres_changes", { event: "*", schema: "public", table: "fund_requests" }, () => qc.invalidateQueries({ queryKey: ["admin-requests"] })).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const ch = supabase
+      .channel("admin-req-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "fund_requests" }, () =>
+        qc.invalidateQueries({ queryKey: ["admin-requests"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [qc]);
 
-  const notify = async (userId: string, title: string, body: string, priority: "low" | "normal" | "high" | "critical" = "normal") => {
-    await supabase.from("notifications").insert({ user_id: userId, title, body, priority, link: "/requests" });
+  const notify = async (
+    userId: string,
+    title: string,
+    body: string,
+    priority: "low" | "normal" | "high" | "critical" = "normal",
+  ) => {
+    await supabase
+      .from("notifications")
+      .insert({ user_id: userId, title, body, priority, link: "/requests" });
   };
   const setStatus = async (r: any, status: string, notes?: string, andRelease = false) => {
     const { data: u } = await supabase.auth.getUser();
@@ -63,7 +107,11 @@ function ManageRequests() {
     // On approval: if the request isn't already tied to a disaster campaign,
     // promote it into an active campaign so all citizens can see and donate.
     if (isApproved && !linkedDisasterId && r.category_id) {
-      const campaignName = `${r.disaster_categories?.name ?? "Disaster"} relief — ${r.barangay}, ${r.city}`.slice(0, 120);
+      const campaignName =
+        `${r.disaster_categories?.name ?? "Disaster"} relief — ${r.barangay}, ${r.city}`.slice(
+          0,
+          120,
+        );
       const { data: created, error: dErr } = await supabase
         .from("disasters")
         .insert({
@@ -96,11 +144,13 @@ function ManageRequests() {
         reviewed_by: u.user?.id ?? null,
         reviewed_at: new Date().toISOString(),
         ...(linkedDisasterId && !r.disaster_id ? { disaster_id: linkedDisasterId } : {}),
-        ...(isApproved ? {
-          verification_status: "verified",
-          verified_by: u.user?.id ?? null,
-          verified_at: new Date().toISOString(),
-        } : {}),
+        ...(isApproved
+          ? {
+              verification_status: "verified",
+              verified_by: u.user?.id ?? null,
+              verified_at: new Date().toISOString(),
+            }
+          : {}),
       })
       .eq("id", r.id);
     if (error) return toast.error(error.message);
@@ -116,14 +166,19 @@ function ManageRequests() {
     toast.success(`Request marked ${status}`);
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
     qc.invalidateQueries({ queryKey: ["admin-disasters"] });
-    
+
     if (andRelease && isApproved) {
       setReleaseFor({
         ...r,
         status: "approved",
         disaster_id: linkedDisasterId,
       });
-      setReleaseForm({ amount: String(r.requested_amount ?? ""), allocation_id: "", reference_number: "", notes: "" });
+      setReleaseForm({
+        amount: String(r.requested_amount ?? ""),
+        allocation_id: "",
+        reference_number: "",
+        notes: "",
+      });
       setReleaseProof(null);
       setViewing(null);
     } else {
@@ -141,12 +196,17 @@ function ManageRequests() {
       if (alloc) {
         const avail = Number(alloc.allocated_amount) - Number(alloc.released_amount);
         if (amt > avail) {
-          return toast.error(`Insufficient funds in selected allocation. Only ${formatPHP(avail)} available.`);
+          return toast.error(
+            `Insufficient funds in selected allocation. Only ${formatPHP(avail)} available.`,
+          );
         }
       }
     }
 
-    if (!releaseProof) return toast.error("Upload a proof of release (receipt, signed acknowledgment, or supporting document)");
+    if (!releaseProof)
+      return toast.error(
+        "Upload a proof of release (receipt, signed acknowledgment, or supporting document)",
+      );
 
     const { data: u } = await supabase.auth.getUser();
     const uid = u.user?.id ?? "system";
@@ -154,7 +214,9 @@ function ManageRequests() {
     // Upload proof to request-documents bucket under the requester's folder
     const safeName = releaseProof.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const proofPath = `${releaseFor.requester_id}/${releaseFor.id}/release-${Date.now()}-${safeName}`;
-    const up = await supabase.storage.from("request-documents").upload(proofPath, releaseProof, { contentType: releaseProof.type });
+    const up = await supabase.storage
+      .from("request-documents")
+      .upload(proofPath, releaseProof, { contentType: releaseProof.type });
     if (up.error) return toast.error(`Proof upload failed: ${up.error.message}`);
 
     const { error: insErr } = await supabase.from("fund_releases").insert({
@@ -170,12 +232,24 @@ function ManageRequests() {
     if (releaseForm.allocation_id) {
       const alloc = (allocs.data ?? []).find((a) => a.id === releaseForm.allocation_id);
       if (alloc) {
-        await supabase.from("fund_allocations").update({ released_amount: Number(alloc.released_amount) + amt }).eq("id", alloc.id);
+        await supabase
+          .from("fund_allocations")
+          .update({ released_amount: Number(alloc.released_amount) + amt })
+          .eq("id", alloc.id);
       }
     }
     await supabase.from("fund_requests").update({ status: "released" }).eq("id", releaseFor.id);
-    await logAudit("request.release", "fund_requests", releaseFor.id, { ...releaseForm, amount: amt, proof_url: up.data.path });
-    await notify(releaseFor.requester_id, `Funds released for your request`, `${formatPHP(amt)} released. Reference: ${releaseForm.reference_number || "—"}`, "high");
+    await logAudit("request.release", "fund_requests", releaseFor.id, {
+      ...releaseForm,
+      amount: amt,
+      proof_url: up.data.path,
+    });
+    await notify(
+      releaseFor.requester_id,
+      `Funds released for your request`,
+      `${formatPHP(amt)} released. Reference: ${releaseForm.reference_number || "—"}`,
+      "high",
+    );
     toast.success("Funds released with proof recorded");
     setReleaseFor(null);
     setReleaseForm({ amount: "", allocation_id: "", reference_number: "", notes: "" });
@@ -186,20 +260,26 @@ function ManageRequests() {
 
   const verify = async (r: any) => {
     const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("fund_requests").update({
-      verification_status: "verified",
-      verified_by: u.user?.id ?? null,
-      verified_at: new Date().toISOString(),
-    }).eq("id", r.id);
+    const { error } = await supabase
+      .from("fund_requests")
+      .update({
+        verification_status: "verified",
+        verified_by: u.user?.id ?? null,
+        verified_at: new Date().toISOString(),
+      })
+      .eq("id", r.id);
     if (error) return toast.error(error.message);
     await logAudit("request.verify", "fund_requests", r.id);
     toast.success("Disaster verified for this request");
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
-    setViewing((v: any) => v && v.id === r.id ? { ...v, verification_status: "verified" } : v);
+    setViewing((v: any) => (v && v.id === r.id ? { ...v, verification_status: "verified" } : v));
   };
 
   return (
-    <AdminShell title="Assistance requests" subtitle="Review citizen aid requests, approve, reject, and release funds.">
+    <AdminShell
+      title="Assistance requests"
+      subtitle="Review citizen aid requests, approve, reject, and release funds."
+    >
       <Tabs value={filter} onValueChange={(v: any) => setFilter(v)} className="mb-5">
         <TabsList>
           <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -225,20 +305,38 @@ function ManageRequests() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {(list.data ?? []).length === 0 && <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">No requests found.</td></tr>}
+            {(list.data ?? []).length === 0 && (
+              <tr>
+                <td colSpan={7} className="p-10 text-center text-muted-foreground">
+                  No requests found.
+                </td>
+              </tr>
+            )}
             {(list.data ?? []).map((r: any) => (
               <tr key={r.id} className="hover:bg-secondary/50">
                 <td className="px-4 py-3">
-                  <p className="font-medium">{r.profiles?.first_name} {r.profiles?.last_name}</p>
+                  <p className="font-medium">
+                    {r.profiles?.first_name} {r.profiles?.last_name}
+                  </p>
                   <p className="text-xs text-muted-foreground">{r.profiles?.mobile_number}</p>
                 </td>
-                <td className="px-4 py-3 text-xs">{r.barangay}, {r.city}</td>
-                <td className="px-4 py-3 text-xs">{r.disasters?.name ?? r.disaster_categories?.name ?? "—"}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{formatPHP(r.requested_amount)}</td>
-                <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                <td className="px-4 py-3 text-xs">
+                  {r.barangay}, {r.city}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  {r.disasters?.name ?? r.disaster_categories?.name ?? "—"}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {formatPHP(r.requested_amount)}
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={r.status} />
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{timeAgo(r.created_at)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setViewing(r)}><Eye className="h-3.5 w-3.5" /> Review</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setViewing(r)}>
+                    <Eye className="h-3.5 w-3.5" /> Review
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -249,26 +347,49 @@ function ManageRequests() {
       {/* Review dialog */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader><DialogTitle>Review request</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Review request</DialogTitle>
+          </DialogHeader>
           {viewing && (
             <div className="space-y-4 text-sm">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Info label="Requester">{viewing.profiles?.first_name} {viewing.profiles?.last_name}</Info>
-                <Info label="Contact">{viewing.profiles?.mobile_number} · {viewing.profiles?.email}</Info>
-                <Info label="Location">{viewing.exact_location}, {viewing.barangay}, {viewing.city}</Info>
+                <Info label="Requester">
+                  {viewing.profiles?.first_name} {viewing.profiles?.last_name}
+                </Info>
+                <Info label="Contact">
+                  {viewing.profiles?.mobile_number} · {viewing.profiles?.email}
+                </Info>
+                <Info label="Location">
+                  {viewing.exact_location}, {viewing.barangay}, {viewing.city}
+                </Info>
                 <Info label="Submitted">{formatDate(viewing.created_at)}</Info>
                 <Info label="Individuals affected">{viewing.affected_individuals}</Info>
                 <Info label="Estimated damage">{formatPHP(viewing.estimated_damage_cost)}</Info>
-                <Info label="Requested amount" highlight>{formatPHP(viewing.requested_amount)}</Info>
-                <Info label="Status"><StatusBadge status={viewing.status} /></Info>
+                <Info label="Requested amount" highlight>
+                  {formatPHP(viewing.requested_amount)}
+                </Info>
+                <Info label="Status">
+                  <StatusBadge status={viewing.status} />
+                </Info>
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Description</Label>
-                <p className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-paper p-3 text-sm">{viewing.disaster_description}</p>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Description
+                </Label>
+                <p className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-paper p-3 text-sm">
+                  {viewing.disaster_description}
+                </p>
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Reviewer notes</Label>
-                <Textarea className="mt-1" rows={3} defaultValue={viewing.reviewer_notes ?? ""} onBlur={(e) => setViewing({ ...viewing, reviewer_notes: e.target.value })} />
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Reviewer notes
+                </Label>
+                <Textarea
+                  className="mt-1"
+                  rows={3}
+                  defaultValue={viewing.reviewer_notes ?? ""}
+                  onBlur={(e) => setViewing({ ...viewing, reviewer_notes: e.target.value })}
+                />
               </div>
             </div>
           )}
@@ -277,32 +398,69 @@ function ManageRequests() {
               <div className="mr-auto flex items-center gap-2 text-xs">
                 <span className="text-muted-foreground">Background verification:</span>
                 {viewing.verification_status === "verified" ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-relief/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-relief"><ShieldCheck className="h-3 w-3" /> Verified</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-relief/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-relief">
+                    <ShieldCheck className="h-3 w-3" /> Verified
+                  </span>
                 ) : (
-                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning-foreground">Unverified</span>
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-warning-foreground">
+                    Unverified
+                  </span>
                 )}
                 {viewing.verification_status !== "verified" && viewing.status !== "released" && (
-                  <Button variant="outline" size="sm" onClick={() => verify(viewing)}><ShieldCheck className="h-3.5 w-3.5" /> Verify disaster</Button>
+                  <Button variant="outline" size="sm" onClick={() => verify(viewing)}>
+                    <ShieldCheck className="h-3.5 w-3.5" /> Verify disaster
+                  </Button>
                 )}
               </div>
             )}
             {viewing && viewing.status !== "released" && (
               <>
-                {viewing.status === "pending" && <Button variant="outline" onClick={() => setStatus(viewing, "under_review")}>Mark under review</Button>}
-                {viewing.status !== "rejected" && viewing.status !== "released" && <Button variant="destructive" onClick={() => setStatus(viewing, "rejected", viewing.reviewer_notes)}><X className="h-4 w-4" /> Reject</Button>}
+                {viewing.status === "pending" && (
+                  <Button variant="outline" onClick={() => setStatus(viewing, "under_review")}>
+                    Mark under review
+                  </Button>
+                )}
+                {viewing.status !== "rejected" && viewing.status !== "released" && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setStatus(viewing, "rejected", viewing.reviewer_notes)}
+                  >
+                    <X className="h-4 w-4" /> Reject
+                  </Button>
+                )}
                 {viewing.status !== "approved" && viewing.status !== "released" && (
                   <>
                     <Button
                       variant="outline"
                       onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes, false)}
-                    ><Check className="mr-1 h-4 w-4 text-relief" /> Approve & Close</Button>
+                    >
+                      <Check className="mr-1 h-4 w-4 text-relief" /> Approve & Close
+                    </Button>
                     <Button
                       variant="relief"
                       onClick={() => setStatus(viewing, "approved", viewing.reviewer_notes, true)}
-                    ><Send className="mr-1 h-4 w-4" /> Approve & Release</Button>
+                    >
+                      <Send className="mr-1 h-4 w-4" /> Approve & Release
+                    </Button>
                   </>
                 )}
-                {viewing.status === "approved" && <Button onClick={() => { setReleaseFor(viewing); setReleaseForm({ amount: String(viewing.requested_amount ?? ""), allocation_id: "", reference_number: "", notes: "" }); setReleaseProof(null); setViewing(null); }}><Send className="h-4 w-4" /> Release funds</Button>}
+                {viewing.status === "approved" && (
+                  <Button
+                    onClick={() => {
+                      setReleaseFor(viewing);
+                      setReleaseForm({
+                        amount: String(viewing.requested_amount ?? ""),
+                        allocation_id: "",
+                        reference_number: "",
+                        notes: "",
+                      });
+                      setReleaseProof(null);
+                      setViewing(null);
+                    }}
+                  >
+                    <Send className="h-4 w-4" /> Release funds
+                  </Button>
+                )}
               </>
             )}
           </DialogFooter>
@@ -312,14 +470,40 @@ function ManageRequests() {
       {/* Release dialog */}
       <Dialog open={!!releaseFor} onOpenChange={(o) => !o && setReleaseFor(null)}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Release funds</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Release funds</DialogTitle>
+          </DialogHeader>
           {releaseFor && (
             <div className="grid gap-4 text-sm">
-              <p className="rounded-md bg-secondary p-3 text-xs">For: <span className="font-medium">{releaseFor.profiles?.first_name} {releaseFor.profiles?.last_name}</span> · {formatPHP(releaseFor.requested_amount)} requested</p>
-              <div><Label className="text-xs">Amount to release (₱) *</Label><Input className="mt-1" type="text" inputMode="decimal" placeholder="0.00" value={releaseForm.amount} onChange={(e) => setReleaseForm({ ...releaseForm, amount: e.target.value.replace(/[^0-9.]/g, "") })} /></div>
+              <p className="rounded-md bg-secondary p-3 text-xs">
+                For:{" "}
+                <span className="font-medium">
+                  {releaseFor.profiles?.first_name} {releaseFor.profiles?.last_name}
+                </span>{" "}
+                · {formatPHP(releaseFor.requested_amount)} requested
+              </p>
+              <div>
+                <Label className="text-xs">Amount to release (₱) *</Label>
+                <Input
+                  className="mt-1"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={releaseForm.amount}
+                  onChange={(e) =>
+                    setReleaseForm({
+                      ...releaseForm,
+                      amount: e.target.value.replace(/[^0-9.]/g, ""),
+                    })
+                  }
+                />
+              </div>
               <div>
                 <Label className="text-xs">Proof of release *</Label>
-                <label htmlFor="release-proof" className="mt-1 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-paper p-3 text-xs hover:border-primary/40">
+                <label
+                  htmlFor="release-proof"
+                  className="mt-1 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border bg-paper p-3 text-xs hover:border-primary/40"
+                >
                   {releaseProof ? (
                     <>
                       <Upload className="h-4 w-4 text-relief" />
@@ -329,32 +513,74 @@ function ManageRequests() {
                   ) : (
                     <>
                       <Upload className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Upload receipt, signed acknowledgment, or other proof (JPG, PNG, PDF — max 10MB)</span>
+                      <span className="text-muted-foreground">
+                        Upload receipt, signed acknowledgment, or other proof (JPG, PNG, PDF — max
+                        10MB)
+                      </span>
                     </>
                   )}
                 </label>
-                <input id="release-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setReleaseProof(e.target.files?.[0] ?? null)} />
+                <input
+                  id="release-proof"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="sr-only"
+                  onChange={(e) => setReleaseProof(e.target.files?.[0] ?? null)}
+                />
               </div>
               <div>
                 <Label className="text-xs">Charge against allocation</Label>
-                <Select value={releaseForm.allocation_id || "_none"} onValueChange={(v) => setReleaseForm({ ...releaseForm, allocation_id: v === "_none" ? "" : v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <Select
+                  value={releaseForm.allocation_id || "_none"}
+                  onValueChange={(v) =>
+                    setReleaseForm({ ...releaseForm, allocation_id: v === "_none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">— General fund —</SelectItem>
                     {(allocs.data ?? []).map((a) => {
                       const avail = Number(a.allocated_amount) - Number(a.released_amount);
-                      return <SelectItem key={a.id} value={a.id}>{a.label} · {formatPHP(avail)} available</SelectItem>;
+                      return (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.label} · {formatPHP(avail)} available
+                        </SelectItem>
+                      );
                     })}
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Reference number</Label><Input className="mt-1" value={releaseForm.reference_number} onChange={(e) => setReleaseForm({ ...releaseForm, reference_number: e.target.value })} placeholder="DV / cheque / transfer #" /></div>
-              <div><Label className="text-xs">Notes</Label><Textarea className="mt-1" rows={2} value={releaseForm.notes} onChange={(e) => setReleaseForm({ ...releaseForm, notes: e.target.value })} /></div>
+              <div>
+                <Label className="text-xs">Reference number</Label>
+                <Input
+                  className="mt-1"
+                  value={releaseForm.reference_number}
+                  onChange={(e) =>
+                    setReleaseForm({ ...releaseForm, reference_number: e.target.value })
+                  }
+                  placeholder="DV / cheque / transfer #"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Notes</Label>
+                <Textarea
+                  className="mt-1"
+                  rows={2}
+                  value={releaseForm.notes}
+                  onChange={(e) => setReleaseForm({ ...releaseForm, notes: e.target.value })}
+                />
+              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReleaseFor(null)}>Cancel</Button>
-            <Button onClick={release}><Send className="h-4 w-4" /> Confirm release</Button>
+            <Button variant="outline" onClick={() => setReleaseFor(null)}>
+              Cancel
+            </Button>
+            <Button onClick={release}>
+              <Send className="h-4 w-4" /> Confirm release
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -362,15 +588,39 @@ function ManageRequests() {
   );
 }
 
-function Info({ label, children, highlight }: { label: string; children: React.ReactNode; highlight?: boolean }) {
+function Info({
+  label,
+  children,
+  highlight,
+}: {
+  label: string;
+  children: React.ReactNode;
+  highlight?: boolean;
+}) {
   return (
     <div>
       <Label className="text-xs uppercase tracking-wider text-muted-foreground">{label}</Label>
-      <p className={`mt-0.5 ${highlight ? "font-display text-lg font-semibold text-relief" : "font-medium"}`}>{children}</p>
+      <p
+        className={`mt-0.5 ${highlight ? "font-display text-lg font-semibold text-relief" : "font-medium"}`}
+      >
+        {children}
+      </p>
     </div>
   );
 }
 function StatusBadge({ status }: { status: string }) {
-  const m: Record<string, string> = { pending: "bg-warning/15 text-warning-foreground", under_review: "bg-primary/10 text-primary", approved: "bg-relief/15 text-relief", rejected: "bg-destructive/15 text-destructive", released: "bg-gold/20 text-ink" };
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${m[status] ?? "bg-secondary"}`}>{status.replace("_", " ")}</span>;
+  const m: Record<string, string> = {
+    pending: "bg-warning/15 text-warning-foreground",
+    under_review: "bg-primary/10 text-primary",
+    approved: "bg-relief/15 text-relief",
+    rejected: "bg-destructive/15 text-destructive",
+    released: "bg-gold/20 text-ink",
+  };
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${m[status] ?? "bg-secondary"}`}
+    >
+      {status.replace("_", " ")}
+    </span>
+  );
 }

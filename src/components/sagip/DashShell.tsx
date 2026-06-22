@@ -21,7 +21,14 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { timeAgo, formatDateTime } from "@/lib/format";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,7 +59,15 @@ const nav = [
   { to: "/profile", label: "My profile", icon: User },
 ] as const;
 
-export function DashShell({ children, title, subtitle }: { children: ReactNode; title: string; subtitle?: string }) {
+export function DashShell({
+  children,
+  title,
+  subtitle,
+}: {
+  children: ReactNode;
+  title: string;
+  subtitle?: string;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -68,7 +83,11 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
       if (!uid) return { profile: null, unread: 0, isAdmin: false };
 
       const [profile, notif, adminRole] = await Promise.all([
-        supabase.from("profiles").select("first_name,last_name,is_verified,avatar_url").eq("id", uid).maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("first_name,last_name,is_verified,avatar_url")
+          .eq("id", uid)
+          .maybeSingle(),
         supabase.from("notifications").select("id").eq("is_read", false),
         supabase.from("user_roles").select("role").eq("role", "admin").maybeSingle(),
       ]);
@@ -108,8 +127,15 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
   const markAllRead = async () => {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return;
-    const { error } = await supabase.from("notifications").update({ is_read: true }).eq("user_id", auth.user.id).eq("is_read", false);
-    if (error) { toast.error(error.message); return; }
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", auth.user.id)
+      .eq("is_read", false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("All notifications marked as read");
     queryClient.invalidateQueries({ queryKey: ["shell-meta"] });
     queryClient.invalidateQueries({ queryKey: ["shell-notifications"] });
@@ -136,7 +162,9 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
     navigate({ to: "/auth", replace: true });
   };
 
-  const name = meta.data?.profile ? `${meta.data.profile.first_name} ${meta.data.profile.last_name}` : "Citizen";
+  const name = meta.data?.profile
+    ? `${meta.data.profile.first_name} ${meta.data.profile.last_name}`
+    : "Citizen";
   const initials = name
     .split(" ")
     .map((s) => s[0])
@@ -165,7 +193,12 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative text-foreground" aria-label="Notifications">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative text-foreground"
+                  aria-label="Notifications"
+                >
                   <Bell className="h-4 w-4" />
                   {!!meta.data?.unread && (
                     <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
@@ -190,12 +223,13 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
                   {notificationsQuery.isLoading && (
                     <p className="p-4 text-center text-xs text-muted-foreground">Loading...</p>
                   )}
-                  {!notificationsQuery.isLoading && (notificationsQuery.data ?? []).length === 0 && (
-                    <div className="flex flex-col items-center gap-2 p-6 text-center text-muted-foreground">
-                      <Bell className="h-6 w-6" />
-                      <p className="text-xs font-semibold">No notifications yet</p>
-                    </div>
-                  )}
+                  {!notificationsQuery.isLoading &&
+                    (notificationsQuery.data ?? []).length === 0 && (
+                      <div className="flex flex-col items-center gap-2 p-6 text-center text-muted-foreground">
+                        <Bell className="h-6 w-6" />
+                        <p className="text-xs font-semibold">No notifications yet</p>
+                      </div>
+                    )}
                   {(notificationsQuery.data ?? []).map((n) => {
                     const Icon = ICONS[n.priority] ?? Bell;
                     const accent = ACCENTS[n.priority] ?? "text-primary";
@@ -205,16 +239,24 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
                         onClick={() => handleNotifClick(n)}
                         className={cn(
                           "flex items-start gap-3 border-b border-border/50 p-3 text-xs cursor-pointer focus:bg-accent/45",
-                          !n.is_read && "bg-accent/20"
+                          !n.is_read && "bg-accent/20",
                         )}
                       >
                         <div className={cn("mt-0.5 shrink-0", accent)}>
                           <Icon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className={cn("font-semibold text-ink", !n.is_read && "font-bold")}>{n.title}</p>
-                          {n.body && <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>}
-                          <p className="mt-1 text-[10px] text-muted-foreground">{timeAgo(n.created_at)}</p>
+                          <p className={cn("font-semibold text-ink", !n.is_read && "font-bold")}>
+                            {n.title}
+                          </p>
+                          {n.body && (
+                            <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
+                              {n.body}
+                            </p>
+                          )}
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {timeAgo(n.created_at)}
+                          </p>
                         </div>
                         {!n.is_read && (
                           <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
@@ -226,8 +268,15 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
               </DropdownMenuContent>
             </DropdownMenu>
             {meta.data?.isAdmin && (
-              <Button variant="outline" size="sm" asChild className="border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground">
-                <Link to="/admin"><ShieldCheck className="h-4 w-4" /> Admin console</Link>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+              >
+                <Link to="/admin">
+                  <ShieldCheck className="h-4 w-4" /> Admin console
+                </Link>
               </Button>
             )}
             <Link
@@ -238,7 +287,9 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
                 {initials}
               </span>
               <span className="font-medium">{name.split(" ")[0]}</span>
-              {meta.data?.profile?.is_verified && <ShieldCheck className="h-3.5 w-3.5 text-relief" />}
+              {meta.data?.profile?.is_verified && (
+                <ShieldCheck className="h-3.5 w-3.5 text-relief" />
+              )}
             </Link>
             <Button variant="outline" size="sm" onClick={onSignOut}>
               <LogOut className="h-4 w-4" /> Sign out
@@ -258,7 +309,9 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
           <nav className="space-y-0.5">
             {nav.map((n) => {
               const Icon = n.icon;
-              const active = pathname === n.to || (n.to !== "/dashboard" && (pathname + "/").startsWith(n.to + "/"));
+              const active =
+                pathname === n.to ||
+                (n.to !== "/dashboard" && (pathname + "/").startsWith(n.to + "/"));
               return (
                 <Link
                   key={n.to}
@@ -272,14 +325,17 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
                   )}
                 >
                   <Icon className="h-4 w-4" /> {n.label}
-
                 </Link>
               );
             })}
           </nav>
           <div className="mt-8 rounded-lg border border-border bg-paper p-4 text-xs text-muted-foreground">
             <p className="font-display text-sm font-semibold text-ink">DRRM Hotline</p>
-            <p className="mt-1">For life-threatening emergencies, dial <span className="font-semibold text-ink">911</span> or call the City DRRM Operations Center at <span className="font-semibold text-ink">(02) 8888-0911</span>.</p>
+            <p className="mt-1">
+              For life-threatening emergencies, dial{" "}
+              <span className="font-semibold text-ink">911</span> or call the City DRRM Operations
+              Center at <span className="font-semibold text-ink">(02) 8888-0911</span>.
+            </p>
           </div>
         </aside>
         {open && (
@@ -293,7 +349,9 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
         {/* Main */}
         <main className="min-w-0 flex-1">
           <div className="mb-6">
-            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              {title}
+            </h1>
             {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
           </div>
           {children}
@@ -330,18 +388,25 @@ export function DashShell({ children, title, subtitle }: { children: ReactNode; 
               </div>
 
               <div className="border-t border-border pt-3">
-                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{selectedNotif.body || "No details provided."}</p>
+                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                  {selectedNotif.body || "No details provided."}
+                </p>
               </div>
             </div>
           )}
           <DialogFooter className="gap-2 sm:justify-end">
-            <Button variant="ghost" onClick={() => setSelectedNotif(null)}>Close</Button>
+            <Button variant="ghost" onClick={() => setSelectedNotif(null)}>
+              Close
+            </Button>
             {selectedNotif?.link && (
-              <Button variant="relief" onClick={() => {
-                const link = selectedNotif.link;
-                setSelectedNotif(null);
-                navigate({ to: link as any });
-              }}>
+              <Button
+                variant="relief"
+                onClick={() => {
+                  const link = selectedNotif.link;
+                  setSelectedNotif(null);
+                  navigate({ to: link as any });
+                }}
+              >
                 Go to page
               </Button>
             )}

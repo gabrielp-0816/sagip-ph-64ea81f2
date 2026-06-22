@@ -59,7 +59,9 @@ function CitizenTransactions() {
           .order("created_at", { ascending: false }),
         supabase
           .from("fund_releases")
-          .select("id,amount,released_at,reference_number,proof_url,fund_requests!inner(id,requester_id,disaster_description)")
+          .select(
+            "id,amount,released_at,reference_number,proof_url,fund_requests!inner(id,requester_id,disaster_description)",
+          )
           .eq("fund_requests.requester_id", uid)
           .order("released_at", { ascending: false }),
       ]);
@@ -107,7 +109,9 @@ function CitizenTransactions() {
         qc.invalidateQueries({ queryKey: ["my-transactions", uid] }),
       )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [qc, uid]);
 
   const filtered = useMemo(() => {
@@ -115,19 +119,22 @@ function CitizenTransactions() {
     if (filter !== "all") rows = rows.filter((r) => r.kind === filter);
     if (search.trim()) {
       const s = search.toLowerCase();
-      rows = rows.filter((r) =>
-        r.reference.toLowerCase().includes(s) ||
-        (r.reference_number ?? "").toLowerCase().includes(s) ||
-        r.method.toLowerCase().includes(s),
+      rows = rows.filter(
+        (r) =>
+          r.reference.toLowerCase().includes(s) ||
+          (r.reference_number ?? "").toLowerCase().includes(s) ||
+          r.method.toLowerCase().includes(s),
       );
     }
     return rows;
   }, [q.data, filter, search]);
 
   const totals = useMemo(() => {
-    let donated = 0, received = 0;
+    let donated = 0,
+      received = 0;
     for (const r of q.data ?? []) {
-      if (r.kind === "donation") donated += r.amount; else received += r.amount;
+      if (r.kind === "donation") donated += r.amount;
+      else received += r.amount;
     }
     return { donated, received };
   }, [q.data]);
@@ -141,16 +148,21 @@ function CitizenTransactions() {
 
   const exportCsv = () => {
     const head = ["Date", "Type", "Reference", "Method", "Reference #", "Amount", "Status"];
-    const lines = [head, ...filtered.map((r) => [
-      new Date(r.occurred_at).toISOString(),
-      r.kind,
-      r.reference,
-      r.method,
-      r.reference_number ?? "",
-      String(r.amount),
-      r.status,
-    ])];
-    const csv = lines.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const lines = [
+      head,
+      ...filtered.map((r) => [
+        new Date(r.occurred_at).toISOString(),
+        r.kind,
+        r.reference,
+        r.method,
+        r.reference_number ?? "",
+        String(r.amount),
+        r.status,
+      ]),
+    ];
+    const csv = lines
+      .map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -166,8 +178,18 @@ function CitizenTransactions() {
       subtitle="Every donation you've made and every aid release you've received — with downloadable proofs."
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCard label="Total donated" value={formatPHP(totals.donated)} icon={HandHeart} accent="relief" />
-        <SummaryCard label="Aid received" value={formatPHP(totals.received)} icon={FileCheck2} accent="gold" />
+        <SummaryCard
+          label="Total donated"
+          value={formatPHP(totals.donated)}
+          icon={HandHeart}
+          accent="relief"
+        />
+        <SummaryCard
+          label="Aid received"
+          value={formatPHP(totals.received)}
+          icon={FileCheck2}
+          accent="gold"
+        />
         <SummaryCard label="Records on file" value={String((q.data ?? []).length)} icon={Receipt} />
       </div>
 
@@ -181,7 +203,12 @@ function CitizenTransactions() {
         </Tabs>
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search by reference or method..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            className="pl-9"
+            placeholder="Search by reference or method..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
           <Download className="h-4 w-4" /> Export CSV
@@ -202,16 +229,28 @@ function CitizenTransactions() {
           </thead>
           <tbody className="divide-y divide-border">
             {q.isLoading && (
-              <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">Loading…</td></tr>
+              <tr>
+                <td colSpan={6} className="p-10 text-center text-muted-foreground">
+                  Loading…
+                </td>
+              </tr>
             )}
             {!q.isLoading && filtered.length === 0 && (
-              <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">
-                No transactions yet. <Link to="/donate" className="font-medium text-primary hover:underline">Make your first donation</Link>.
-              </td></tr>
+              <tr>
+                <td colSpan={6} className="p-10 text-center text-muted-foreground">
+                  No transactions yet.{" "}
+                  <Link to="/donate" className="font-medium text-primary hover:underline">
+                    Make your first donation
+                  </Link>
+                  .
+                </td>
+              </tr>
             )}
             {filtered.map((r) => (
               <tr key={r.id} className="hover:bg-secondary/50">
-                <td className="px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.occurred_at)}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {formatDateTime(r.occurred_at)}
+                </td>
                 <td className="px-4 py-3">
                   {r.kind === "donation" ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-relief/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-relief">
@@ -228,12 +267,17 @@ function CitizenTransactions() {
                   <p className="capitalize text-muted-foreground">{r.method}</p>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">{r.reference_number ?? "—"}</td>
-                <td className={`px-4 py-3 text-right font-semibold tabular-nums ${r.kind === "donation" ? "text-relief" : "text-ink"}`}>
+                <td
+                  className={`px-4 py-3 text-right font-semibold tabular-nums ${r.kind === "donation" ? "text-relief" : "text-ink"}`}
+                >
                   {r.kind === "donation" ? "−" : "+"} {formatPHP(r.amount)}
                 </td>
                 <td className="px-4 py-3 text-xs">
                   {r.proof_url ? (
-                    <button onClick={() => openProof(r)} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                    <button
+                      onClick={() => openProof(r)}
+                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    >
                       <ExternalLink className="h-3 w-3" /> View
                     </button>
                   ) : (
@@ -249,13 +293,27 @@ function CitizenTransactions() {
   );
 }
 
-function SummaryCard({ label, value, icon: Icon, accent }: { label: string; value: string; icon: any; accent?: "relief" | "gold" }) {
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon: any;
+  accent?: "relief" | "gold";
+}) {
   const bar = accent === "relief" ? "bg-relief" : accent === "gold" ? "bg-gold" : "bg-primary";
   return (
     <div className="group relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-border/80">
-      <div className={`absolute left-0 top-0 h-full w-1 ${bar} transition-all duration-300 group-hover:w-1.5`} />
+      <div
+        className={`absolute left-0 top-0 h-full w-1 ${bar} transition-all duration-300 group-hover:w-1.5`}
+      />
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
         <Icon className="h-4 w-4 text-muted-foreground transition-all duration-300 group-hover:text-foreground group-hover:scale-110" />
       </div>
       <p className="mt-3 font-display text-2xl font-semibold tabular-nums">{value}</p>

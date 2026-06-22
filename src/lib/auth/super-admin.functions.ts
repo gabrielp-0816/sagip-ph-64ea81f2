@@ -16,7 +16,10 @@ export const ensureSuperAdmin = createServerFn({ method: "POST" }).handler(async
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   // Look for an existing user with this email
-  const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+  const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+    page: 1,
+    perPage: 200,
+  });
   if (listErr) throw new Error(listErr.message);
   const existing = list.users.find((u) => (u.email ?? "").toLowerCase() === SUPER_ADMIN_EMAIL);
 
@@ -26,7 +29,12 @@ export const ensureSuperAdmin = createServerFn({ method: "POST" }).handler(async
     // Force-update password and metadata to ensure correct default credentials/roles
     const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password: SUPER_ADMIN_PASSWORD,
-      user_metadata: { first_name: "Super", last_name: "Admin", role: "super_admin", is_super_admin: true },
+      user_metadata: {
+        first_name: "Super",
+        last_name: "Admin",
+        role: "super_admin",
+        is_super_admin: true,
+      },
     });
     if (updateErr) throw new Error(updateErr.message);
   } else {
@@ -34,7 +42,12 @@ export const ensureSuperAdmin = createServerFn({ method: "POST" }).handler(async
       email: SUPER_ADMIN_EMAIL,
       password: SUPER_ADMIN_PASSWORD,
       email_confirm: true,
-      user_metadata: { first_name: "Super", last_name: "Admin", role: "super_admin", is_super_admin: true },
+      user_metadata: {
+        first_name: "Super",
+        last_name: "Admin",
+        role: "super_admin",
+        is_super_admin: true,
+      },
     });
     if (createErr) throw new Error(createErr.message);
     userId = created.user!.id;
@@ -64,7 +77,7 @@ export const ensureSuperAdmin = createServerFn({ method: "POST" }).handler(async
       { user_id: userId, role: "admin" },
       { user_id: userId, role: "super_admin" },
     ],
-    { onConflict: "user_id,role" }
+    { onConflict: "user_id,role" },
   );
 
   return { ok: true, userId, email: SUPER_ADMIN_EMAIL };

@@ -10,11 +10,12 @@ This is a large multi-area request. I'll break it into phases so we can verify p
 
 3. **Proof of payment / proof of release uploads** — OK to store in existing private storage buckets (`request-documents` for proof of release, and a new `donation-proofs` bucket for donations)?
 
-4. **One aid request per disaster** — Should this block only *pending/approved* requests (so users can re-apply after rejection), or block entirely once any request exists for that disaster?
+4. **One aid request per disaster** — Should this block only _pending/approved_ requests (so users can re-apply after rejection), or block entirely once any request exists for that disaster?
 
 ## Phased implementation plan
 
 ### Phase 1 — Backend / schema
+
 - New `transactions` view or table aggregating donations + fund_releases (date, amount, category, status, direction)
 - Add `proof_url` column to `fund_releases` (required on release)
 - Add `proof_url` column to `donations` (required on submit)
@@ -25,6 +26,7 @@ This is a large multi-area request. I'll break it into phases so we can verify p
 - Profiles: ensure admin signup writes city/province/address
 
 ### Phase 2 — Admin side
+
 - Overview: audit every button, wire navigation, remove dead buttons
 - Disaster Campaigns: clear all default values, number inputs `type="text"` with numeric validation, no `0` defaults, no spinners
 - Fund Allocation: category dropdown sourced from `disaster_categories` table, empty numerics
@@ -35,6 +37,7 @@ This is a large multi-area request. I'll break it into phases so we can verify p
 - UI polish: hover contrast tokens in `src/styles.css`, audit sidebar/menu hover states
 
 ### Phase 3 — Citizen side
+
 - Dashboard: "Request Aid" button → navigate to `/request?disaster_id=...&category=...`, pre-select category from disaster on the form
 - Donation form: clear all defaults (amount blank, proper phone placeholder `09XXXXXXXXX`), required proof-of-payment upload, replace "Office of DRRM" copy with SAGIP
 - Request Aid form: clear pre-filled city, add Metro Manila city dropdown + dependent barangay dropdown, fix alignment, block duplicate request per disaster with friendly error
@@ -43,12 +46,14 @@ This is a large multi-area request. I'll break it into phases so we can verify p
 - Notifications page: fix navigation trap (remove blocking modal / ensure back button + sidebar still work)
 
 ### Phase 4 — Cross-cutting
+
 - Auth login page: password show/hide eye icon (both citizen `/auth` and `/admin-auth`)
 - Sweep all `defaultValue={0}` / preset numeric/text values from forms
 - Consistent SAGIP branding pass
 - Verify build + visit each touched page
 
 ## Technical notes
+
 - Numeric inputs: use `<Input type="text" inputMode="numeric" pattern="[0-9]*">` + zod `z.coerce.number().positive()` so fields start empty and don't show spinners
 - Sidebar active state: use TanStack `<Link activeProps={{ className: ... }}>` and ensure `activeOptions={{ exact: false }}` where needed
 - Verification + proof of release will be enforced both client-side (form) and server-side (DB NOT NULL + RLS-safe server function)

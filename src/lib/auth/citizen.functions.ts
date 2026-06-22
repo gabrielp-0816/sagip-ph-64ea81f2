@@ -12,7 +12,8 @@ const idTypeEnum = z.enum([
 
 const schema = z.object({
   email: z.string().email().max(255),
-  password: z.string()
+  password: z
+    .string()
     .min(8)
     .max(128)
     .regex(/[A-Z]/, "Must contain an uppercase letter")
@@ -63,7 +64,8 @@ export const signUpCitizen = createServerFn({ method: "POST" })
     if (!userId) throw new Error("Failed to create account");
 
     // Upload ID
-    const safeExt = (data.idFileName.split(".").pop() ?? "jpg").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "jpg";
+    const safeExt =
+      (data.idFileName.split(".").pop() ?? "jpg").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "jpg";
     const path = `${userId}/id-${Date.now()}.${safeExt}`;
     const { error: upErr } = await supabaseAdmin.storage
       .from("verification-ids")

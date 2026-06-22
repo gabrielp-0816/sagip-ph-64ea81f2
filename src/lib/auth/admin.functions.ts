@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-
 const idTypeEnum = z.enum([
   "national_id",
   "drivers_license",
@@ -14,7 +13,8 @@ const idTypeEnum = z.enum([
 
 const signupSchema = z.object({
   email: z.string().email().max(255),
-  password: z.string()
+  password: z
+    .string()
     .min(8)
     .max(128)
     .regex(/[A-Z]/, "Must contain an uppercase letter")
@@ -87,7 +87,8 @@ export const signUpAdmin = createServerFn({ method: "POST" })
     if (!userId) throw new Error("Failed to create administrator account");
 
     // 4. Upload ID to verification-ids bucket using service role.
-    const safeExt = (data.idFileName.split(".").pop() ?? "jpg").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "jpg";
+    const safeExt =
+      (data.idFileName.split(".").pop() ?? "jpg").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "jpg";
     const path = `${userId}/id-${Date.now()}.${safeExt}`;
     const { error: upErr } = await supabaseAdmin.storage
       .from("verification-ids")
@@ -127,15 +128,14 @@ export const signUpAdmin = createServerFn({ method: "POST" })
 
     // 6. Replace the auto-assigned 'citizen' role with the assigned admin/super_admin role(s).
     await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
-    const rolesToInsert = assignedRole === "super_admin"
-      ? [
-          { user_id: userId, role: "admin" as const },
-          { user_id: userId, role: "super_admin" as const },
-        ]
-      : [{ user_id: userId, role: "admin" as const }];
-    const { error: roleErr } = await supabaseAdmin
-      .from("user_roles")
-      .insert(rolesToInsert);
+    const rolesToInsert =
+      assignedRole === "super_admin"
+        ? [
+            { user_id: userId, role: "admin" as const },
+            { user_id: userId, role: "super_admin" as const },
+          ]
+        : [{ user_id: userId, role: "admin" as const }];
+    const { error: roleErr } = await supabaseAdmin.from("user_roles").insert(rolesToInsert);
     if (roleErr) {
       await supabaseAdmin.storage.from("verification-ids").remove([path]);
       await supabaseAdmin.auth.admin.deleteUser(userId);

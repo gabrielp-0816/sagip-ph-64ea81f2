@@ -12,7 +12,12 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, Props>(
     const [show, setShow] = React.useState(false);
     return (
       <div className={cn("relative", containerClassName)}>
-        <Input ref={ref} type={show ? "text" : "password"} className={cn("pr-10", className)} {...props} />
+        <Input
+          ref={ref}
+          type={show ? "text" : "password"}
+          className={cn("pr-10", className)}
+          {...props}
+        />
         <button
           type="button"
           onClick={() => setShow((s) => !s)}

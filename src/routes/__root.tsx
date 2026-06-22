@@ -56,12 +56,18 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Try again
           </button>
-          <a href="/" className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+          <a
+            href="/"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
             Go home
           </a>
         </div>
@@ -76,23 +82,46 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "SAGIP" },
-      { name: "description", content: "Transparent, accountable disaster risk fund management for Philippine city governments. Donate, request assistance, and track relief operations in real time." },
+      {
+        name: "description",
+        content:
+          "Transparent, accountable disaster risk fund management for Philippine city governments. Donate, request assistance, and track relief operations in real time.",
+      },
       { name: "author", content: "City Government of the Philippines" },
       { name: "theme-color", content: "#0B2F5B" },
       { property: "og:title", content: "SAGIP" },
-      { property: "og:description", content: "Transparent, accountable disaster risk fund management for Philippine city governments. Donate, request assistance, and track relief operations in real time." },
+      {
+        property: "og:description",
+        content:
+          "Transparent, accountable disaster risk fund management for Philippine city governments. Donate, request assistance, and track relief operations in real time.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "SAGIP" },
-      { name: "twitter:description", content: "Transparent, accountable disaster risk fund management for Philippine city governments. Donate, request assistance, and track relief operations in real time." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b1fad6a7-9189-41d4-95d0-f54bc060e22d/id-preview-7ee85f50--cc386620-d4cb-4e25-aeec-c1e9193fb29e.lovable.app-1781363271084.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b1fad6a7-9189-41d4-95d0-f54bc060e22d/id-preview-7ee85f50--cc386620-d4cb-4e25-aeec-c1e9193fb29e.lovable.app-1781363271084.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Transparent, accountable disaster risk fund management for Philippine city governments. Donate, request assistance, and track relief operations in real time.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b1fad6a7-9189-41d4-95d0-f54bc060e22d/id-preview-7ee85f50--cc386620-d4cb-4e25-aeec-c1e9193fb29e.lovable.app-1781363271084.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b1fad6a7-9189-41d4-95d0-f54bc060e22d/id-preview-7ee85f50--cc386620-d4cb-4e25-aeec-c1e9193fb29e.lovable.app-1781363271084.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -104,7 +133,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+      </head>
       <body>
         {children}
         <Scripts />
